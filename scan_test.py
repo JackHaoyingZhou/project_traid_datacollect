@@ -31,8 +31,6 @@ import csv
 import os
 from joint_pos_recorder import JointPosRecorder
 
-jpRecorder = JointPosRecorder(save_path='./data/PSM2_js', record_size=50)
-
 # print with node id
 def print_id(message):
     print('%s -> %s' % (rospy.get_caller_id(), message))
@@ -137,8 +135,8 @@ class example_application:
             time.sleep(0.2)
             goal[0] = goal[0] - amplitude
             self.arm.servo_jp(goal)
-            self.write.writerow(goal)
-            jpRecorder.record(list(goal))
+            # self.write.writerow(goal)
+            # jpRecorder.record(list(goal))
             print('saving')
             # t = self.run_get(t)
             #count += 1

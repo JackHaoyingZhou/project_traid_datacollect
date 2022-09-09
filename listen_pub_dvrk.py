@@ -1,27 +1,70 @@
 import os
 import sys
+import copy
 import numpy as np
 import rospy
-from joint_pos_recorder import JointPosRecorder
+# from joint_pos_recorder import JointPosRecorder
+from std_msgs.msg import Bool
 from geometry_msgs.msg import TransformStamped
+from sensor_msgs.msg import JointState
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge, CvBridgeError
+import cv2
+from TraidPSMFK import TraidPSMFK
+from scipy.spatial.transform import Rotation as Rot
 import time
+from datetime import datetime
+import json
 
-jpRecorder_sujecm = JointPosRecorder(save_path='./data/SUJECM', record_size=100)
-jpRecorder_sujpsm2 = JointPosRecorder(save_path='./data/SUJPSM2', record_size=100)
-jpRecorder_ecm = JointPosRecorder(save_path='./data/ECM', record_size=100)
+dynamic_path = os.path.abspath(__file__+"/../")
+# print(dynamic_path)
+sys.path.append(dynamic_path)
+
+tm_format = '%Y_%m_%d_%H_%M_%S.%f'
+
+time_current = datetime.now().strftime(tm_format)
+
+save_folder = os.path.join(dynamic_path, 'data', time_current)
+
+transform_folder = os.path.join(save_folder, 'transform')
+
+# jpRecorder = JointPosRecorder(save_path=transform_folder, record_size=50)
+
+img_folder = os.path.join(save_folder, 'image')
+
+if not os.path.exists(img_folder):
+    os.makedirs(img_folder)
+
+bridge = CvBridge()
 
 class triadRecorder:
     def __init__(self):
-        rospy.init_node('test', anonymous=True)
+        rospy.init_node('traid_test', anonymous=True)
         self.sujecm_topic = '/SUJ/ECM/measured_cp'
         self.sujpsm2_topic = '/SUJ/PSM2/measured_cp'
+        self.psm2_topic = '/PSM2/measured_js'
         self.ecm_topic = '/ECM/measured_cp'
-        self.list_sujecm = None
-        self.list_ecm = None
-        self.list_sujpsm2 = None
+        self.camera1_topic = '/cv_camera1/image_raw'
+        self.camera2_topic = '/cv_camera2/image_raw'
+        self.robot_topic = '/robot_ready_flag'
+        self.pa_topic = '/PA_ready_flag'
+        self.T_sujecm = None
+        self.T_ecm = None
+        self.T_sujpsm2 = None
+        self.T_psm2 = None
+        self.camera1_img = None
+        self.camera2_img = None
+        self.robot_status = False
+        self.pa_status = False
         self.sub_topic_sujecm = rospy.Subscriber(self.sujecm_topic, TransformStamped, self.sujecm_sub, queue_size=1)
         self.sub_topic_sujpsm2 = rospy.Subscriber(self.sujpsm2_topic, TransformStamped, self.sujpsm2_sub, queue_size=1)
         self.sub_topic_ecm = rospy.Subscriber(self.ecm_topic, TransformStamped, self.ecm_sub, queue_size=1)
+        self.sub_topic_psm2 = rospy.Subscriber(self.psm2_topic, JointState, self.ecm_sub, queue_size=1)
+        self.sub_topic_camera1 = rospy.Subscriber(self.camera1_topic, Image, self.camera1_sub, queue_size=1)
+        self.sub_topic_camera2 = rospy.Subscriber(self.camera2_topic, Image, self.camera2_sub, queue_size=1)
+        self.sub_robot = rospy.Subscriber(self.robot_topic, Bool, self.robot_sub, queue_size=1)
+        self.sub_pa = rospy.Subscriber(self.pa_topic, Bool, self.pa_sub, queue_size=1)
+        self.count = 0
 
     def sujecm_sub(self, msg):
         tranform_cp = msg.transform
@@ -32,7 +75,23 @@ class triadRecorder:
         y = tranform_cp.rotation.y
         z = tranform_cp.rotation.z
         w = tranform_cp.rotation.w
-        self.list_sujecm = [sx, sy, sz, x, y, z, w]
+        T = np.zeros((4, 4))
+        r = Rot.from_quat([x, y, z, w])
+        T[0:3, 0:3] = r
+        T[0, 3] = sx
+        T[1, 3] = sy
+        T[2, 3] = sz
+        self.T_sujecm = T
+
+    def psm2_sub(self, msg):
+        joint_pos = msg.position
+        q = np.zeros((1, 3))
+        q[0, 0] = joint_pos[0]
+        q[0, 1] = joint_pos[1]
+        q[0, 2] = joint_pos[2]
+        PSM_FK = TraidPSMFK(q)
+        T = PSM_FK.compute_FK()
+        self.T_psm2 = T
 
     def ecm_sub(self, msg):
         tranform_cp = msg.transform
@@ -43,7 +102,13 @@ class triadRecorder:
         y = tranform_cp.rotation.y
         z = tranform_cp.rotation.z
         w = tranform_cp.rotation.w
-        self.list_ecm = [sx, sy, sz, x, y, z, w]
+        T = np.zeros((4, 4))
+        r = Rot.from_quat([x, y, z, w])
+        T[0:3, 0:3] = r
+        T[0, 3] = sx
+        T[1, 3] = sy
+        T[2, 3] = sz
+        self.T_ecm = T
 
     def sujpsm2_sub(self, msg):
         tranform_cp = msg.transform
@@ -54,29 +119,55 @@ class triadRecorder:
         y = tranform_cp.rotation.y
         z = tranform_cp.rotation.z
         w = tranform_cp.rotation.w
-        self.list_sujpsm2 = [sx, sy, sz, x, y, z, w]
+        T = np.zeros((4, 4))
+        r = Rot.from_quat([x, y, z, w])
+        T[0:3, 0:3] = r
+        T[0, 3] = sx
+        T[1, 3] = sy
+        T[2, 3] = sz
+        self.T_sujpsm2 = T
+
+    def camera1_sub(self, msg):
+        # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        try:
+            self.camera1_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+    def camera2_sub(self, msg):
+        # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+        try:
+            self.camera2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+            # cv2.imwrite("test2.jpg", cv2_img)
+            print("camera2 save")
+        except CvBridgeError as e:
+            print(e)
+
+    def robot_sub(self, msg):
+        self.robot_status = msg.data
+
+    def pa_sub(self, msg):
+        self.pa_status = msg.data
 
     def get_data(self):
-        return self.list_sujecm, self.list_sujpsm2, self.list_ecm
+        T_suj_ecmtip = self.T_sujecm @ self.T_ecm
+        T_suj_psm2tip = self.T_sujpsm2 @ self.T_psm2
+        T_ecm_psm2 = np.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
+        return T_ecm_psm2
 
     def sub_run(self, feq):
         rate = rospy.Rate(feq)
-        count = 0
-        while (count< 10):
-            list_sujecm, list_sujpsm2, list_ecm = self.get_data()
-            # print(list_sujecm)
-            jpRecorder_sujecm.record(list_sujecm)
-            # print(list_sujpsm2)
-            jpRecorder_sujpsm2.record(list_sujpsm2)
-            jpRecorder_ecm.record(list_ecm)
+        while not rospy.is_shutdown():
+            T_ecm_psm2 = self.get_data()
+            list_T_ecm_psm2 = copy.deepcopy(T_ecm_psm2.tolist())
+            # jpRecorder.record(list_T_ecm_psm2)
             rate.sleep()
             count = count + 1
-        jpRecorder_sujecm.flush()
-        jpRecorder_sujpsm2.flush()
-        jpRecorder_ecm.flush()
+
 
 if __name__ == '__main__':
-    sub_class = triadRecorder()
-    sub_class.sub_run(1)
+    a = 1
+    # sub_class = triadRecorder()
+    # sub_class.sub_run(1)
 
 
