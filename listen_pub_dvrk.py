@@ -20,13 +20,18 @@ dynamic_path = os.path.abspath(__file__+"/../")
 # print(dynamic_path)
 sys.path.append(dynamic_path)
 
-tm_format = '%Y_%m_%d_%H_%M_%S.%f'
+tm_format = '%Y_%m_%d_%H_%M_%S'
 
 time_current = datetime.now().strftime(tm_format)
 
-save_folder = os.path.join(dynamic_path, 'data', time_current)
+save_folder_name = 'exp_' + time_current
+
+save_folder = os.path.join(dynamic_path, 'data', save_folder_name)
 
 transform_folder = os.path.join(save_folder, 'transform')
+
+if not os.path.exists(transform_folder):
+    os.makedirs(transform_folder)
 
 # jpRecorder = JointPosRecorder(save_path=transform_folder, record_size=50)
 
@@ -54,7 +59,7 @@ class triadRecorder:
         self.T_psm2 = None
         self.camera1_img = None
         self.camera2_img = None
-        self.robot_status = False
+        self.robot_status = True
         self.pa_status = False
         self.sub_topic_sujecm = rospy.Subscriber(self.sujecm_topic, TransformStamped, self.sujecm_sub, queue_size=1)
         self.sub_topic_sujpsm2 = rospy.Subscriber(self.sujpsm2_topic, TransformStamped, self.sujpsm2_sub, queue_size=1)
@@ -131,6 +136,7 @@ class triadRecorder:
         # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
         try:
             self.camera1_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+            print('camera1 read')
         except CvBridgeError as e:
             print(e)
 
@@ -138,8 +144,7 @@ class triadRecorder:
         # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
         try:
             self.camera2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
-            # cv2.imwrite("test2.jpg", cv2_img)
-            print("camera2 save")
+            print("camera2 read")
         except CvBridgeError as e:
             print(e)
 
@@ -153,21 +158,45 @@ class triadRecorder:
         T_suj_ecmtip = self.T_sujecm @ self.T_ecm
         T_suj_psm2tip = self.T_sujpsm2 @ self.T_psm2
         T_ecm_psm2 = np.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
-        return T_ecm_psm2
+        return T_ecm_psm2, self.camera1_img, self.camera2_img
+
+    def save_json(self, file_path, T):
+        config = {'ecm_psm_transform': copy.deepcopy(T.tolist()),
+                  'suj_ecm_transform': copy.deepcopy(self.T_sujecm.tolist()),
+                  'suj_psm2_transform': copy.deepcopy(self.T_sujpsm2.tolist()),
+                  'ecm_transform': copy.deepcopy(self.T_ecm.tolist()),
+                  'psm2_transform': copy.deepcopy(self.T_psm2.tolist())}
+        json_w = json.dumps(config)
+        f = open(file_path, 'w')
+        f.write(json_w)
+        f.close()
+
+    def save_img(self, folder_path, img_left, img_right):
+        img_left = copy.deepcopy(img_left)
+        img_right = copy.deepcopy(img_right)
+        img_left_name = f'{self.count}_left.jpg'
+        img_right_name = f'{self.count}_right.jpg'
+        img_left_path = os.path.join(folder_path, img_left_name)
+        img_right_path = os.path.join(folder_path, img_right_name)
+        cv2.imwrite(img_left_path, img_left)
+        cv2.imwrite(img_right_path, img_right)
 
     def sub_run(self, feq):
         rate = rospy.Rate(feq)
         while not rospy.is_shutdown():
-            T_ecm_psm2 = self.get_data()
-            list_T_ecm_psm2 = copy.deepcopy(T_ecm_psm2.tolist())
-            # jpRecorder.record(list_T_ecm_psm2)
+            T_ecm_psm2, img_left, img_right = self.get_data()
+            if self.pa_status and (not self.robot_status):
+                self.count+=1
+                file_json_name = f'{self.count}.json'
+                file_json_path = os.path.join(transform_folder, file_json_name)
+                self.save_json(file_json_path, T_ecm_psm2)
+                self.save_img(img_folder, img_left, img_right)
             rate.sleep()
-            count = count + 1
 
 
 if __name__ == '__main__':
-    a = 1
-    # sub_class = triadRecorder()
-    # sub_class.sub_run(1)
+    refresh_rate = 1
+    sub_class = triadRecorder()
+    sub_class.sub_run(refresh_rate)
 
 
