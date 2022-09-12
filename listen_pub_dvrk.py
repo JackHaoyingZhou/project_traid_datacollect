@@ -54,22 +54,25 @@ class triadRecorder:
         self.robot_topic = '/robot_ready_flag'
         self.pa_topic = '/PA_ready_flag'
         self.record_topic = '/record_ready_flag'
-        self.T_sujecm = None
-        self.T_ecm = None
-        self.T_sujpsm2 = None
-        self.T_psm2 = None
+        init_mtx = np.eye(4)
+        self.T_sujecm = init_mtx
+        self.T_ecm = init_mtx
+        self.T_sujpsm2 = init_mtx
+        self.T_psm2 = init_mtx
         self.camera1_img = None
         self.camera2_img = None
-        self.robot_status = True
+        self.robot_status = False
         self.pa_status = False
+        self.record_status = False
         self.sub_topic_sujecm = rospy.Subscriber(self.sujecm_topic, TransformStamped, self.sujecm_sub, queue_size=1)
         self.sub_topic_sujpsm2 = rospy.Subscriber(self.sujpsm2_topic, TransformStamped, self.sujpsm2_sub, queue_size=1)
         self.sub_topic_ecm = rospy.Subscriber(self.ecm_topic, TransformStamped, self.ecm_sub, queue_size=1)
-        self.sub_topic_psm2 = rospy.Subscriber(self.psm2_topic, JointState, self.ecm_sub, queue_size=1)
+        self.sub_topic_psm2 = rospy.Subscriber(self.psm2_topic, JointState, self.psm2_sub, queue_size=1)
         self.sub_topic_camera1 = rospy.Subscriber(self.camera1_topic, Image, self.camera1_sub, queue_size=1)
         self.sub_topic_camera2 = rospy.Subscriber(self.camera2_topic, Image, self.camera2_sub, queue_size=1)
         self.sub_robot = rospy.Subscriber(self.robot_topic, Bool, self.robot_sub, queue_size=1)
         self.sub_pa = rospy.Subscriber(self.pa_topic, Bool, self.pa_sub, queue_size=1)
+        self.sub_record = rospy.Subscriber(self.record_topic, Bool, self.record_sub, queue_size=1)
         self.count = 0
 
     def sujecm_sub(self, msg):
@@ -83,7 +86,8 @@ class triadRecorder:
         w = tranform_cp.rotation.w
         T = np.zeros((4, 4))
         r = Rot.from_quat([x, y, z, w])
-        T[0:3, 0:3] = r
+        T[3, 3] = 1
+        T[0:3, 0:3] = r.as_matrix()
         T[0, 3] = sx
         T[1, 3] = sy
         T[2, 3] = sz
@@ -110,7 +114,8 @@ class triadRecorder:
         w = tranform_cp.rotation.w
         T = np.zeros((4, 4))
         r = Rot.from_quat([x, y, z, w])
-        T[0:3, 0:3] = r
+        T[3, 3] = 1
+        T[0:3, 0:3] = r.as_matrix()
         T[0, 3] = sx
         T[1, 3] = sy
         T[2, 3] = sz
@@ -127,7 +132,8 @@ class triadRecorder:
         w = tranform_cp.rotation.w
         T = np.zeros((4, 4))
         r = Rot.from_quat([x, y, z, w])
-        T[0:3, 0:3] = r
+        T[3, 3] = 1
+        T[0:3, 0:3] = r.as_matrix()
         T[0, 3] = sx
         T[1, 3] = sy
         T[2, 3] = sz
@@ -137,7 +143,7 @@ class triadRecorder:
         # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
         try:
             self.camera1_img = bridge.imgmsg_to_cv2(msg, "bgr8")
-            print('camera1 read')
+            # print('camera1 read')
         except CvBridgeError as e:
             print(e)
 
@@ -145,12 +151,15 @@ class triadRecorder:
         # rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
         try:
             self.camera2_img = bridge.imgmsg_to_cv2(msg, "bgr8")
-            print("camera2 read")
+            # print("camera2 read")
         except CvBridgeError as e:
             print(e)
 
     def robot_sub(self, msg):
         self.robot_status = msg.data
+
+    def record_sub(self, msg):
+        self.record_status = msg.data
 
     def pa_sub(self, msg):
         self.pa_status = msg.data
@@ -187,6 +196,7 @@ class triadRecorder:
         while not rospy.is_shutdown():
             T_ecm_psm2, img_left, img_right = self.get_data()
             if self.pa_status and (not self.robot_status):
+                print('saving')
                 self.count += 1
                 file_json_name = f'{self.count}.json'
                 file_json_path = os.path.join(transform_folder, file_json_name)
@@ -196,7 +206,8 @@ class triadRecorder:
 
 
 if __name__ == '__main__':
-    refresh_rate = 1
+    refresh_rate = 5
+    # refresh_rate = 1
     sub_class = triadRecorder()
     sub_class.sub_run(refresh_rate)
 

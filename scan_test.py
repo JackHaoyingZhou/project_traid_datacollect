@@ -44,9 +44,10 @@ class example_application:
         self.robot_topic = '/robot_ready_flag'
         self.record_topic = '/record_ready_flag'
         self.pa_status = False
-        self.robot_status = True
+        self.robot_status = False
         self.record_status = False
         self.sub_pa = rospy.Subscriber(self.pa_topic, Bool, self.pa_sub, queue_size=1)
+        self.pub_pa = rospy.Publisher(self.pa_topic, Bool, queue_size=1)
         self.pub_robot = rospy.Publisher(self.robot_topic, Bool, queue_size=1)
         self.pub_record = rospy.Publisher(self.record_topic, Bool, queue_size=1)
         self.timestamp = 0.0
@@ -154,24 +155,30 @@ class example_application:
             # self.arm.move_jp(goal).wait()
             # self.write.writerow(goal)
             # jpRecorder.record(list(goal))
-            if (not self.pa_status) and (not self.robot_status):
-                self.robot_status = True
-                self.pub_robot.publish(self.robot_status)
+            if self.pa_status and (not self.robot_status):
                 goal[0] = goal[0] - amplitude
                 self.arm.servo_jp(goal)
                 time.sleep(0.2)
-                self.robot_status = False
+                self.robot_status = True
+                self.pub_robot.publish(self.robot_status)
+                self.pa_status = False
+                self.pub_pa.publish(self.pa_status)
                 self.record_status = True
                 self.pub_record.publish(self.record_status)
                 print('saving')
+                count += 1
+                print(count)
             else:
                 self.record_status = False
+                self.robot_status = False
                 self.pub_record.publish(self.record_status)
                 self.pub_robot.publish(self.robot_status)
-            print(self.pa_status)
-            print(self.robot_status)
+
+            # print(count)
+            # print(self.pa_status)
+            # print(self.robot_status)
             # t = self.run_get(t)
-            count += 1
+
             if goal[0] < math.radians(-20.0):
                 input("Press Enter to EXIT...")
                 self.arm.move_jp(initial_joint_position).wait()
