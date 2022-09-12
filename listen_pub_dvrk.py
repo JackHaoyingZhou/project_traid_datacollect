@@ -53,6 +53,7 @@ class triadRecorder:
         self.camera2_topic = '/cv_camera2/image_raw'
         self.robot_topic = '/robot_ready_flag'
         self.pa_topic = '/PA_ready_flag'
+        self.record_topic = '/record_ready_flag'
         self.T_sujecm = None
         self.T_ecm = None
         self.T_sujpsm2 = None
@@ -186,7 +187,7 @@ class triadRecorder:
         while not rospy.is_shutdown():
             T_ecm_psm2, img_left, img_right = self.get_data()
             if self.pa_status and (not self.robot_status):
-                self.count+=1
+                self.count += 1
                 file_json_name = f'{self.count}.json'
                 file_json_path = os.path.join(transform_folder, file_json_name)
                 self.save_json(file_json_path, T_ecm_psm2)

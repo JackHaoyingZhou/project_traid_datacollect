@@ -29,6 +29,7 @@ import PyKDL
 import argparse
 import csv
 import os
+from std_msgs.msg import Bool
 # from joint_pos_recorder import JointPosRecorder
 
 # print with node id
@@ -37,6 +38,23 @@ def print_id(message):
 
 # example of application using arm.py
 class example_application:
+
+    def __init__(self):
+        self.pa_topic = '/PA_ready_flag'
+        self.robot_topic = '/robot_ready_flag'
+        self.record_topic = '/record_ready_flag'
+        self.pa_status = False
+        self.robot_status = True
+        self.record_status = False
+        self.sub_pa = rospy.Subscriber(self.pa_topic, Bool, self.pa_sub, queue_size=1)
+        self.pub_robot = rospy.Publisher(self.robot_topic, Bool, queue_size=1)
+        self.pub_record = rospy.Publisher(self.record_topic, Bool, queue_size=1)
+        self.timestamp = 0.0
+        self.expected_interval = 0.0
+        self.insertion = 0.0
+
+    def pa_sub(self, msg):
+        self.pa_status = msg.data
 
     # configuration
     def configure(self, robot_name, expected_interval, insertion):
@@ -49,8 +67,8 @@ class example_application:
         #           'measured RCM cartesian position', 'desired global joint position',
         #           'desired global cartesian position', 'desired RCM cartesian position']
         # self.write.writerow(header)
-        self.arm = dvrk.arm(arm_name = robot_name,
-                            expected_interval = expected_interval)
+        self.arm = dvrk.arm(arm_name=robot_name, expected_interval=expected_interval)
+        self.timestamp = self.expected_interval
 
     # homing example-0.524
     #35 degree -- 0.611
@@ -82,14 +100,14 @@ class example_application:
         # try to move again to make sure waiting is working fine, i.e. not blocking
         print_id('testing move to current position')
         move_handle = self.arm.move_jp(goal)
-        time.sleep(1.0) # add some artificial latency on this side
+        time.sleep(1.0)  # add some artificial latency on this side
         move_handle.wait()
         print_id('home complete')
 
     # get methods
     def run_get(self, t, init=False):
 
-        d1 = self.arm.measured_jp(extra=True)
+        [d1, dt] = self.arm.measured_jp(extra=True)
         # d2 = self.arm.measured_cp()
         # d3 = self.arm.local.measured_cp()
         self.d4 = self.arm.setpoint_jp()
@@ -98,10 +116,10 @@ class example_application:
         if init:
             t = 0
         else:
-            t = t + d1[1] - self.timestamp
-        self.timestamp = d1[1]
-        temp = [d1[0][0], self.d4[0],t]
-        print(d1)
+            t = t + dt - self.timestamp
+        self.timestamp = dt
+        temp = [d1[0], self.d4[0], t]
+        print(dt)
         print('feed', temp)
         # self.write.writerow(temp)
         return t
@@ -127,19 +145,33 @@ class example_application:
         t = self.run_get(t, init=True)
         count = 0
         input("Press Enter to Start...")
-        while True:
-            if count == 5:
-                count = 0
-                input("Press Enter to continue...")
-            input("Press Enter to continue")
-            time.sleep(0.2)
-            goal[0] = goal[0] - amplitude
-            self.arm.servo_jp(goal)
+        # while True:
+        while not rospy.is_shutdown():
+            # if count == 5:
+            #     count = 0
+            #     input("Press Enter to continue...")
+            # input("Press Enter to continue")
+            # self.arm.move_jp(goal).wait()
             # self.write.writerow(goal)
             # jpRecorder.record(list(goal))
-            print('saving')
+            if (not self.pa_status) and (not self.robot_status):
+                self.robot_status = True
+                self.pub_robot.publish(self.robot_status)
+                goal[0] = goal[0] - amplitude
+                self.arm.servo_jp(goal)
+                time.sleep(0.2)
+                self.robot_status = False
+                self.record_status = True
+                self.pub_record.publish(self.record_status)
+                print('saving')
+            else:
+                self.record_status = False
+                self.pub_record.publish(self.record_status)
+                self.pub_robot.publish(self.robot_status)
+            print(self.pa_status)
+            print(self.robot_status)
             # t = self.run_get(t)
-            #count += 1
+            count += 1
             if goal[0] < math.radians(-20.0):
                 input("Press Enter to EXIT...")
                 self.arm.move_jp(initial_joint_position).wait()
@@ -205,9 +237,11 @@ class example_application:
         except KeyboardInterrupt:
             sys.exit()
 
+
 if __name__ == '__main__':
     # ros init node so we can use default ros arguments (e.g. __ns:= for namespace)
-    rospy.init_node('dvrk_arm_test', anonymous=True)
+    # rospy.init_node('dvrk_arm_test', anonymous=True)
+    rospy.init_node('dvrk_run', anonymous=True)
     # strip ros arguments
     argv = rospy.myargv(argv=sys.argv)
 
