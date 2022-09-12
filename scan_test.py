@@ -29,7 +29,7 @@ import PyKDL
 import argparse
 import csv
 import os
-from joint_pos_recorder import JointPosRecorder
+# from joint_pos_recorder import JointPosRecorder
 
 # print with node id
 def print_id(message):
@@ -43,12 +43,12 @@ class example_application:
         print_id('configuring dvrk_arm_test for %s' % robot_name)
         self.expected_interval = expected_interval
         self.insertion = insertion
-        file = open('testdata1.csv', 'w+')
-        self.write = csv.writer(file)
-        header = ['measured global joint position', 'measured global cartesian position',
-                  'measured RCM cartesian position', 'desired global joint position',
-                  'desired global cartesian position', 'desired RCM cartesian position']
-        self.write.writerow(header)
+        # file = open('testdata1.csv', 'w+')
+        # self.write = csv.writer(file)
+        # header = ['measured global joint position', 'measured global cartesian position',
+        #           'measured RCM cartesian position', 'desired global joint position',
+        #           'desired global cartesian position', 'desired RCM cartesian position']
+        # self.write.writerow(header)
         self.arm = dvrk.arm(arm_name = robot_name,
                             expected_interval = expected_interval)
 
@@ -89,7 +89,7 @@ class example_application:
     # get methods
     def run_get(self, t, init=False):
 
-        d1 = self.arm.measured_jp(extra = True)
+        d1 = self.arm.measured_jp(extra=True)
         # d2 = self.arm.measured_cp()
         # d3 = self.arm.local.measured_cp()
         self.d4 = self.arm.setpoint_jp()
@@ -102,8 +102,8 @@ class example_application:
         self.timestamp = d1[1]
         temp = [d1[0][0], self.d4[0],t]
         print(d1)
-        print('feed',temp)
-        self.write.writerow(temp)
+        print('feed', temp)
+        # self.write.writerow(temp)
         return t
 
     # goal joint control example
@@ -120,7 +120,7 @@ class example_application:
 
         # first motion method
         goal[0] = math.radians(20.0)
-        goal[1] = -0.611 # math.radians(-17.0)
+        goal[1] = -0.611  # math.radians(-17.0)
 
         self.arm.move_jp(goal).wait()
         t = 0
@@ -148,53 +148,53 @@ class example_application:
                 break
 
     # utility to position tool/camera deep enough before cartesian examples
-    def prepare_cartesian(self):
-        # make sure the camera is past the cannula and tool vertical
-        goal = numpy.copy(self.arm.setpoint_jp())
-        if ((self.arm.name() == 'PSM1') or (self.arm.name() == 'PSM2')
-            or (self.arm.name() == 'PSM3') or (self.arm.name() == 'ECM')):
-            # set in position joint mode
-            goal[0] = -0.10
-            goal[1] = -0.611 ##############################
-            goal[2] = 0.2 + self.insertion
-            goal[3] = 0.0
-            self.arm.move_jp(goal).wait()
+    # def prepare_cartesian(self):
+    #     # make sure the camera is past the cannula and tool vertical
+    #     goal = numpy.copy(self.arm.setpoint_jp())
+    #     if ((self.arm.name() == 'PSM1') or (self.arm.name() == 'PSM2')
+    #         or (self.arm.name() == 'PSM3') or (self.arm.name() == 'ECM')):
+    #         # set in position joint mode
+    #         goal[0] = -0.10
+    #         goal[1] = -0.611 ##############################
+    #         goal[2] = 0.2 + self.insertion
+    #         goal[3] = 0.0
+    #         self.arm.move_jp(goal).wait()
 
     # direct cartesian control example
-    def run_move_cp(self):
-        print_id('starting move_cp')
-        self.prepare_cartesian()
-
-        # create a new goal starting with current position
-        initial_cartesian_position = PyKDL.Frame()
-        initial_cartesian_position.p = self.arm.setpoint_cp().p
-        initial_cartesian_position.M = self.arm.setpoint_cp().M
-        goal = PyKDL.Frame()
-        goal.p = self.arm.setpoint_cp().p
-        goal.M = self.arm.setpoint_cp().M
-
-        # motion parameters
-        amplitude = math.radians(1) # 1 degree
-
-        goal.p[0] = -0.0200
-        self.arm.move_cp(goal).wait()
-        self.run_get()
-        theta0 = self.d4[0]
-        theta = self.d4[0]
-        while True:
-            # input("Press Enter to continue...")
-            print('joint',theta,theta+amplitude,math.tan(theta)*0.08,math.tan(theta+amplitude)*0.08)
-            goal.p[0] = math.tan(theta+amplitude) * (0.2+self.insertion)
-            self.arm.move_cp(goal).wait()
-            self.run_get()
-            theta = self.d4[0]
-            if theta > -theta0:
-                # back to initial position
-                input("Press Enter to continue...")
-                self.arm.move_cp(initial_cartesian_position).wait()
-                self.run_get()
-                print_id('move_cp complete')
-                break
+    # def run_move_cp(self):
+    #     print_id('starting move_cp')
+    #     self.prepare_cartesian()
+    #
+    #     # create a new goal starting with current position
+    #     initial_cartesian_position = PyKDL.Frame()
+    #     initial_cartesian_position.p = self.arm.setpoint_cp().p
+    #     initial_cartesian_position.M = self.arm.setpoint_cp().M
+    #     goal = PyKDL.Frame()
+    #     goal.p = self.arm.setpoint_cp().p
+    #     goal.M = self.arm.setpoint_cp().M
+    #
+    #     # motion parameters
+    #     amplitude = math.radians(1) # 1 degree
+    #
+    #     goal.p[0] = -0.0200
+    #     self.arm.move_cp(goal).wait()
+    #     self.run_get()
+    #     theta0 = self.d4[0]
+    #     theta = self.d4[0]
+    #     while True:
+    #         # input("Press Enter to continue...")
+    #         print('joint',theta,theta+amplitude,math.tan(theta)*0.08,math.tan(theta+amplitude)*0.08)
+    #         goal.p[0] = math.tan(theta+amplitude) * (0.2+self.insertion)
+    #         self.arm.move_cp(goal).wait()
+    #         self.run_get()
+    #         theta = self.d4[0]
+    #         if theta > -theta0:
+    #             # back to initial position
+    #             input("Press Enter to continue...")
+    #             self.arm.move_cp(initial_cartesian_position).wait()
+    #             self.run_get()
+    #             print_id('move_cp complete')
+    #             break
 
     # main method
     def run(self):
@@ -215,14 +215,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--arm', type=str, required=True,
                         choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
-                        help = 'arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace')
+                        help='arm name corresponding to ROS topics without namespace. '
+                             'Use __ns:= to specify the namespace')
     parser.add_argument('-i', '--interval', type=float, default=0.01,
-                        help = 'expected interval in seconds between messages sent by the device')
+                        help='expected interval in seconds between messages sent by the device')
     parser.add_argument('-s', '--insertion', type=float, default=0.0,
-                        help = 'expected extra initialized insertion for probe by meters (real insertion - 0.2)')
+                        help='expected extra initialized insertion for probe by meters (real insertion - 0.2)')
     args = parser.parse_args(argv[1:]) # skip argv[0], script name
 
     application = example_application()
     application.configure(args.arm, args.interval, args.insertion)
     application.run()
-    jpRecorder.flush()
+    # jpRecorder.flush()
