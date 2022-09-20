@@ -11,10 +11,13 @@ class TraidPSMFK():
         ####### note: joint_pos should be a 1x3 matrix for each pose, if not, change one commented code below
         self.q = joint_pos
         self.screw_axis = np.array([[0,0,1,0,0,0],[-1,0,0,0,0,0],[0,0,0,0,-1,0]])
-        self.l1 = 0.12
-        self.l2 = 0.24
-        self.l3 = 0.05 * np.sin(np.deg2rad(30))
-        self.l4 = 0.05 * np.cos(np.deg2rad(30))
+        self.l1 = 0.25
+        # self.l2 = 0.32
+        self.l2 = 0.265
+        # self.l3 = 0.05 * np.sin(np.deg2rad(30))
+        # self.l4 = 0.05 * np.cos(np.deg2rad(30))
+        self.l3 = 0.04 * np.sin(np.deg2rad(30))
+        self.l4 = 0.04 * np.cos(np.deg2rad(30))
         self.theta_sin = np.sin(np.deg2rad(30))
         self.theta_cos = np.cos(np.deg2rad(30))
         # self.l3 = 0.055

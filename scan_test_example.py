@@ -43,7 +43,7 @@ class example_application:
         self.pa_topic = '/PA_ready_flag'
         self.robot_topic = '/robot_ready_flag'
         self.record_topic = '/record_ready_flag'
-        self.pa_status = False
+        self.pa_status = True
         self.robot_status = False
         self.record_status = False
         self.sub_pa = rospy.Subscriber(self.pa_topic, Bool, self.pa_sub, queue_size=1)
@@ -93,7 +93,6 @@ class example_application:
         if ((self.arm.name() == 'PSM1') or (self.arm.name() == 'PSM2')
             or (self.arm.name() == 'PSM3') or (self.arm.name() == 'ECM')):
             goal[2] = 0.2 + self.insertion
-        goal[1] = -0.611
         # move and wait
         print_id('moving to starting position')
         self.arm.move_jp(goal).wait()
@@ -140,7 +139,7 @@ class example_application:
         # first motion method
         goal[0] = math.radians(20.0)
         goal[1] = -0.611  # math.radians(-17.0)
-        goal[2] = 0.2 - self.insertion
+        goal[2] = 0.2 + self.insertion
 
         self.arm.move_jp(goal).wait()
         t = 0
@@ -160,20 +159,20 @@ class example_application:
                 goal[0] = goal[0] - amplitude
                 self.arm.servo_jp(goal)
                 time.sleep(0.2)
-                self.robot_status = True
-                self.pub_robot.publish(self.robot_status)
-                self.pa_status = False
-                self.pub_pa.publish(self.pa_status)
-                self.record_status = True
-                self.pub_record.publish(self.record_status)
+                # self.robot_status = True
+                # self.pub_robot.publish(self.robot_status)
+                # self.pa_status = False
+                # self.pub_pa.publish(self.pa_status)
+                # self.record_status = True
+                # self.pub_record.publish(self.record_status)
                 print('saving')
                 count += 1
                 print(count)
-            else:
-                self.record_status = False
-                self.robot_status = False
-                self.pub_record.publish(self.record_status)
-                self.pub_robot.publish(self.robot_status)
+            # else:
+                # self.record_status = False
+                # self.robot_status = False
+                # self.pub_record.publish(self.record_status)
+                # self.pub_robot.publish(self.robot_status)
 
             # print(count)
             # print(self.pa_status)
