@@ -140,7 +140,7 @@ class example_application:
         # first motion method
         goal[0] = math.radians(20.0)
         goal[1] = -0.611  # math.radians(-17.0)
-        goal[2] = 0.2 - self.insertion
+        goal[2] = 0.2 + self.insertion
 
         self.arm.move_jp(goal).wait()
         t = 0

@@ -9,7 +9,8 @@ import os
 import csv
 import rospy
 import numpy as np
-from cv2 import cv2
+# from cv2 import cv2
+import cv2
 from cv2 import aruco
 from datetime import datetime
 from sensor_msgs.msg import Image

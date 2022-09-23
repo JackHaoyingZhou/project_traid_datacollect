@@ -26,7 +26,7 @@ time_current = datetime.now().strftime(tm_format)
 
 save_folder_name = 'exp_' + time_current
 
-save_folder = os.path.join(dynamic_path, 'data', save_folder_name)
+save_folder = os.path.join(dynamic_path, 'data_0923_test', save_folder_name)
 
 transform_folder = os.path.join(save_folder, 'transform')
 
@@ -98,7 +98,7 @@ class triadRecorder:
         q = np.zeros((1, 3))
         q[0, 0] = joint_pos[0]
         q[0, 1] = joint_pos[1]
-        q[0, 2] = joint_pos[2]
+        q[0, 2] = joint_pos[2] - 0.20
         PSM_FK = TraidPSMFK(q)
         T = PSM_FK.compute_FK()
         self.T_psm2 = T
@@ -165,9 +165,21 @@ class triadRecorder:
         self.pa_status = msg.data
 
     def get_data(self):
-        T_suj_ecmtip = self.T_sujecm @ self.T_ecm
-        T_suj_psm2tip = self.T_sujpsm2 @ self.T_psm2
-        T_ecm_psm2 = np.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
+
+        T_ecmoffset = -np.eye(4)
+        T_ecmoffset[3, 3] = 1
+        T_psmoffset = np.zeros((4, 4))
+        T_psmoffset[3, 3] = 1
+        # T_psmoffset[1, 3] = 0.49
+        T_psmoffset[1, 3] = 0.0
+        T_psmoffset[0, 0] = 1
+        T_psmoffset[2, 1] = 1
+        T_psmoffset[1, 2] = -1
+
+        T_ecm_psm2 = self.T_sujpsm2 @ T_psmoffset @ self.T_psm2
+        # T_suj_ecmtip = self.T_sujecm @ self.T_ecm
+        # T_suj_psm2tip = self.T_sujpsm2 @ self.T_psm2
+        # T_ecm_psm2 = np.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
         return T_ecm_psm2, self.camera1_img, self.camera2_img
 
     def save_json(self, file_path, T):

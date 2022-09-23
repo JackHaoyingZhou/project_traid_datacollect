@@ -172,31 +172,21 @@ class triadRecorder:
         T_psmoffset[3, 3] = 1
         # T_psmoffset[1, 3] = 0.49
         T_psmoffset[1, 3] = 0.0
-        T_psmoffset[0, 0] = -1
-        T_psmoffset[2, 1] = -1
-        T_psmoffset[1, 2] = 1
-        # T3 = np.eye(4)
-        # T3[2, 3] = -0.20
-        T_suj_ecmtip = self.T_sujecm @ T_ecmoffset @ self.T_ecm
-        # print('ECM')
-        # print(T_suj_ecmtip)
-        T_suj_psm2tip = self.T_sujpsm2 @ T_psmoffset @ self.T_psm2
+        # T_psmoffset[0, 0] = -1
+        # T_psmoffset[2, 1] = -1
+        # T_psmoffset[1, 2] = 1
+        T_psmoffset[0, 0] = 1
+        T_psmoffset[2, 1] = 1
+        T_psmoffset[1, 2] = -1
+
+        T_ecm_psm2 = self.T_sujpsm2 @ T_psmoffset @ self.T_psm2
         # print('PSM2')
         # print(T_suj_psm2tip)
         # print('SUJ-PSM2')
         # print(self.T_sujpsm2)
         # print('PSM2 per se')
         # print(self.T_psm2)
-        T_world = np.array([[-0.48094629,  0.29003298, -0.82738838, -0.11965834],
-                            [-0.79376915,  0.25670804,  0.55139053,  0.13074116],
-                            [0.37231869,  0.9219446,   0.10675645, -0.14546411],
-                            [0.0, 0.0, 0.0, 1.0]])
-        T_world[0:3, 0:3] = np.eye(3)
-        T_offset = copy.deepcopy(scipy.linalg.inv(T_world))
-        # T_ecm_psm2 = scipy.linalg.inv(T_world) @ scipy.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
-        T_ecm_psm2 = T_offset @ scipy.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
-        # T_ecm_psm2 = scipy.linalg.inv(T_suj_ecmtip) @ T_suj_psm2tip
-        # T_ecm_psm2 = np.round(T_ecm_psm2, 3)
+
         return T_ecm_psm2, self.camera1_img, self.camera2_img
 
     def save_json(self, file_path, T):
