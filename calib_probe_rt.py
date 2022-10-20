@@ -27,8 +27,8 @@ class StreamECMData():
 
   def __init__(self) -> None:
     rospy.init_node('ECM_stream_subscriber', anonymous=True)
-    self.ecm_cam1_sub = rospy.Subscriber('cv_camera1/image_raw', Image, self.ecm_cam1_cb)
-    self.ecm_cam2_sub = rospy.Subscriber('cv_camera2/image_raw', Image, self.ecm_cam2_cb)
+    self.ecm_cam1_sub = rospy.Subscriber('/cv_camera1/image_raw', Image, self.ecm_cam1_cb)
+    self.ecm_cam2_sub = rospy.Subscriber('/cv_camera2/image_raw', Image, self.ecm_cam2_cb)
     self.cam1_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
     self.cam2_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
 
@@ -185,8 +185,8 @@ def main():
 
     print(f'rot: \n {mk_obj.mk_rmat.reshape((2,3,3))} \ntrans: \n {mk_obj.mk_tvec}')
 
-    # cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
-    cv2.imshow('ecm2', mk_obj.mk_axis_frame)
+    cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
+    # cv2.imshow('ecm2', mk_obj.mk_axis_frame)
 
     key = cv2.waitKey(1)
     if key & 0xFF == ord('q') or key == 27:
