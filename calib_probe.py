@@ -1,56 +1,84 @@
 #! /usr/bin/env python3
 '''
 file name:    calib_probe.py
-description:  ECM-probe pose estimation using aruco markers, modified from franka_ultrasound repo
+description:  load saved ECM images, manually label aruco marker positions in ECM images
 author:       Xihan Ma
-date:         2022-09-20
+date:         2022-09-24
 '''
 import os
-import csv
-import rospy
-import numpy as np
-# from cv2 import cv2
 import cv2
+import csv
+import time
+import numpy as np
 from cv2 import aruco
+from scipy.io import savemat
 from datetime import datetime
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-
-camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
-dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
 
 
 class StreamECMData():
   IMG_RAW_HEIGHT = 1080   # original size
   IMG_RAW_WIDTH = 1920
-  IMG_DISP_HEIGHT = 480
-  IMG_DISP_WIDTH = 640
+  # IMG_DISP_HEIGHT = 480
+  # IMG_DISP_WIDTH = 640
+  IMG_DISP_HEIGHT = 1080
+  IMG_DISP_WIDTH = 1920
 
-  def __init__(self) -> None:
-    rospy.init_node('ECM_stream_subscriber', anonymous=True)
-    self.ecm_cam1_sub = rospy.Subscriber('cv_camera1/image_raw', Image, self.ecm_cam1_cb)
-    self.ecm_cam2_sub = rospy.Subscriber('cv_camera2/image_raw', Image, self.ecm_cam2_cb)
-    self.cam1_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
-    self.cam2_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
+  def __init__(self, img_path) -> None:
+    self.img_path = img_path
+    self.cam1_imgs = None
+    self.cam2_imgs = None
+    files = os.listdir(self.img_path)
+    files = sorted(files, key=lambda x: int(x.split("_")[0]))  # sort on first part of str
+    self.cam1_files = []
+    self.cam2_files = []
+    for f in files:
+      if 'right' in f:
+        self.cam1_files.append(f)
+      elif 'left' in f:
+        self.cam2_files.append(f)
+    assert(len(self.cam1_files) == len(self.cam2_files) and len(self.cam1_files) > 0)
+    self.num_imgs = len(self.cam1_files)
+    t_start = time.perf_counter()
+    self.load_cam1_imgs()
+    self.load_cam2_imgs()
+    t_stop = time.perf_counter()
+    print(f'finish loading ecm images, total time elapsed: {t_stop-t_start:.2f} sec.')
 
-  def frm_preproc(self):
-    ...
+  def frm_preproc(self, img: np.ndarray) -> np.ndarray:
+    # kernel = np.array([[-1, -1, -1],
+    #                    [-1, 9, -1],
+    #                    [-1, -1, -1]])
+    # img = cv2.filter2D(img, -1, kernel)
+    # img = cv2.GaussianBlur(img, (5, 5), 0.8)
+    # kernel = np.ones((3, 3), dtype=np.uint8)
+    # img = cv2.dilate(img, kernel, iterations=1)
+    return img
 
-  def ecm_cam1_cb(self, msg: Image) -> None:
-    cam1_img_raw = CvBridge().imgmsg_to_cv2(msg).astype(np.uint8)
-    self.cam1_img = cv2.resize(cam1_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
-                               interpolation=cv2.INTER_AREA)
+  def load_cam1_imgs(self) -> None:
+    self.cam1_imgs = np.zeros((self.num_imgs, self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
+    for i, f in enumerate(self.cam1_files):
+      # print(f'read cam1: {f} ({i+1}/{self.num_imgs})')
+      cam1_img_raw = cv2.imread(os.path.join(self.img_path, f))
+      cam1_img_raw = self.frm_preproc(cam1_img_raw)
+      self.cam1_imgs[i, :, :, :] = cv2.resize(cam1_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
+                                              interpolation=cv2.INTER_AREA)
 
-  def ecm_cam2_cb(self, msg: Image) -> None:
-    cam2_img_raw = CvBridge().imgmsg_to_cv2(msg).astype(np.uint8)
-    self.cam2_img = cv2.resize(cam2_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
-                               interpolation=cv2.INTER_AREA)
+  def load_cam2_imgs(self) -> None:
+    self.cam2_imgs = np.zeros((self.num_imgs, self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
+    for i, f in enumerate(self.cam2_files):
+      # print(f'read cam2: {f} ({i+1}/{self.num_imgs})')
+      cam2_img_raw = cv2.imread(os.path.join(self.img_path, f))
+      cam2_img_raw = self.frm_preproc(cam2_img_raw)
+      self.cam2_imgs[i, :, :, :] = cv2.resize(cam2_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
+                                              interpolation=cv2.INTER_AREA)
 
-  def get_cam1_img(self) -> np.ndarray:
-    return self.cam1_img
+  def get_cam1_img(self, nfrm: int) -> np.ndarray:
+    assert(nfrm <= self.num_imgs)
+    return self.cam1_imgs[nfrm, :, :, :]
 
-  def get_cam2_img(self) -> np.ndarray:
-    return self.cam2_img
+  def get_cam2_img(self, nfrm: int) -> np.ndarray:
+    assert(nfrm <= self.num_imgs)
+    return self.cam2_imgs[nfrm, :, :, :]
 
 
 class TrackMarker:
@@ -158,38 +186,96 @@ class TrackMarker:
     self.pos_writer.writerow(row2write)
 
 
-def main():
-  frm_save_path = 'data/mk_frame.png'
+def auto_detect():
+  ecm = StreamECMData(img_folder)
+  mk_obj = TrackMarker(num_mk=2, recording=False)
 
-  ecm = StreamECMData()
-  mk_obj = TrackMarker(num_mk=2, recording=True)
-  rate = rospy.Rate(30)
   cv2.namedWindow('ecm2', cv2.WINDOW_AUTOSIZE)
-
-  while not rospy.is_shutdown():
-    frame = ecm.get_cam2_img()
+  for i in range(ecm.num_imgs):
+    frame = ecm.get_cam2_img(i)
 
     mk_obj.detect_markers(frame)
     mk_obj.estimate_pose(frame, camera_matrix, dist_coeff)
 
-    dist_pix = mk_obj.calc_marker_dist_pix()
-    dist_xyz = mk_obj.calc_marker_dist_xyz()
+    # dist_pix = mk_obj.calc_marker_dist_pix()
+    # dist_xyz = mk_obj.calc_marker_dist_xyz()
     # if dist_pix != -1 and dist_xyz != -1:
     #   print(f'dist in img: {dist_pix:.3f} [pix], dist in xyz: {dist_xyz*1000:.4f} [mm]')
 
     print(f'rot: \n {mk_obj.mk_rmat.reshape((2,3,3))} \ntrans: \n {mk_obj.mk_tvec}')
 
-    # cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
-    cv2.imshow('ecm2', mk_obj.mk_axis_frame)
+    cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
+    # cv2.imshow('ecm2', mk_obj.mk_axis_frame)
 
-    key = cv2.waitKey(1)
+    key = cv2.waitKey(10)
     if key & 0xFF == ord('q') or key == 27:
       break
-    elif key == ord('s'):
-      cv2.imwrite(os.path.join(os.path.dirname(__file__), frm_save_path), mk_obj.mk_bbox_frame)
-      print('marker frame saved')
-    rate.sleep()
+    time.sleep(0.2)
+
+
+def on_mouse_click(event, x, y, flags, param):
+  global mk_counter, mk_pix
+  if event == cv2.EVENT_LBUTTONDBLCLK:
+    cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
+    assert(mk_counter >= 0 and mk_counter < 2)
+    mk_pix[mk_counter, :] = [x, y]
+    mk_counter += 1
+    if mk_counter > 1:
+      mk_counter = 0
+    cv2.imshow('ecm2', frame)
+
+
+camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
+dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
+# ========== choose dataset ==========
+# data_folder = 'T2_pa700/exp_2022_09_23_16_41_50/'
+data_folder = 'T2_pa820/exp_2022_09_23_16_52_11/'
+# data_folder = 'T3_pa700/exp_2022_09_23_17_12_57/'
+# data_folder = 'T3_pa820/exp_2022_09_23_17_20_52/'
+# ====================================
+img_folder = os.path.join(data_folder, 'image/')
+assert(os.path.exists(img_folder) and os.path.exists(data_folder))
+assert(os.path.exists(data_folder+'labeled/'))  # directory to store labeled data, need to be manually created
+mk_counter = 0
+mk_pix = -1*np.ones((2, 2), dtype=np.int32)
 
 
 if __name__ == "__main__":
-  main()
+  # auto_detect()
+  # ========== manual detect ==========
+  ecm = StreamECMData(img_folder)
+  mk_pix_rec = -1*np.ones((ecm.num_imgs, 2, 2), dtype=np.int32)
+  cv2.namedWindow('ecm2', cv2.WINDOW_AUTOSIZE)
+  cv2.setMouseCallback('ecm2', on_mouse_click)
+
+  i = 0
+  try:
+    while 1:
+      frame = ecm.get_cam2_img(i)
+      cv2.imshow('ecm2', frame)
+      key = cv2.waitKey(0)
+      if key & 0xFF == ord('q') or key == 27:
+        break
+      elif key == ord('s'):
+        mk_pix_rec[i, :, :] = mk_pix
+        print(f'({i+1}/{ecm.num_imgs}) pix positions: mk0 {mk_pix[0]}, mk1 {mk_pix[1]}')
+        pic_path = os.path.join(data_folder, 'labeled/', '{}_labeled.png'.format(str(i+1)))
+        cv2.imwrite(pic_path, frame)
+        i += 1
+        mk_counter = 0
+
+      if i >= ecm.num_imgs:
+        print('finished labeling')
+        mdic = {"mk0": mk_pix_rec[:, 0, :].reshape(ecm.num_imgs, 2),
+                "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2)}
+        mat_path = os.path.join(data_folder, 'labeled/mk_pix.mat')
+        savemat(mat_path, mdic)
+        break
+  except Exception as e:
+    print(e)
+  finally:
+    mdic = {"mk0": mk_pix_rec[:, 0, :].reshape(ecm.num_imgs, 2),
+            "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2)}
+    mat_path = os.path.join(data_folder, 'labeled/mk_pix.mat')
+    savemat(mat_path, mdic)
+  # ===================================
