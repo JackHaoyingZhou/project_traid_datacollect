@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
-'''
-file name:    calib_probe_rt.py
-description:  stream ECM images from ROS topic, estimate ECM-to-probe pose using aruco markers
-author:       Xihan Ma
-date:         2022-09-20
-'''
+# =============================================================================
+# file name:    calib_probe_rt.py
+# description:  stream ECM images from ROS topic, estimate ECM-to-probe pose using aruco markers
+# author:       Xihan Ma
+# date:         2022-09-20
+# =============================================================================
 import os
 import cv2
 import csv
