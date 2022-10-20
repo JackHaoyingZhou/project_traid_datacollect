@@ -73,6 +73,7 @@ class example_application:
 
     # homing example-0.524
     #35 degree -- 0.611
+    #30 degree -- 0.524
     def home(self):
         print_id('starting enable')
         if not self.arm.enable(10):
@@ -85,7 +86,7 @@ class example_application:
         goal = numpy.copy(self.arm.setpoint_jp())
         # print(type(goal))
         goal[0] = -0.10
-        goal[1] = -0.611
+        goal[1] = -0.524
         # go to zero position, for PSM and ECM make sure 3rd joint is past cannula
         goal.fill(0)
         print(len(goal))
@@ -93,7 +94,6 @@ class example_application:
         if ((self.arm.name() == 'PSM1') or (self.arm.name() == 'PSM2')
             or (self.arm.name() == 'PSM3') or (self.arm.name() == 'ECM')):
             goal[2] = 0.2 + self.insertion
-        goal[1] = -0.611
         # move and wait
         print_id('moving to starting position')
         self.arm.move_jp(goal).wait()
@@ -131,7 +131,7 @@ class example_application:
         # get current position
         initial_joint_position = numpy.copy(self.arm.setpoint_jp())
         initial_joint_position[0] = 0
-        initial_joint_position[1] = -0.611
+        initial_joint_position[1] = -0.524
         print_id('testing goal joint position for 2 joints out of %i' % initial_joint_position.size)
         amplitude = math.radians(1)
         # create a new goal starting with current position
@@ -139,7 +139,7 @@ class example_application:
 
         # first motion method
         goal[0] = math.radians(20.0)
-        goal[1] = -0.611  # math.radians(-17.0)
+        goal[1] = -0.524  # math.radians(-17.0)
         goal[2] = 0.2 + self.insertion
 
         self.arm.move_jp(goal).wait()
@@ -195,7 +195,7 @@ class example_application:
                 or (self.arm.name() == 'ECM')):
             # set in position joint mode
             goal[0] = -0.10
-            goal[1] = -0.611 ##############################
+            goal[1] = -0.524 ##############################
             goal[2] = 0.2 + self.insertion
             goal[3] = 0.0
             self.arm.move_jp(goal).wait()

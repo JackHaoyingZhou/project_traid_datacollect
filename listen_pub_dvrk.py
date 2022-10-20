@@ -26,7 +26,7 @@ time_current = datetime.now().strftime(tm_format)
 
 save_folder_name = 'exp_' + time_current
 
-save_folder = os.path.join(dynamic_path, 'data_0923_test', save_folder_name)
+save_folder = os.path.join(dynamic_path, 'data_1020_test', save_folder_name)
 
 transform_folder = os.path.join(save_folder, 'transform')
 
