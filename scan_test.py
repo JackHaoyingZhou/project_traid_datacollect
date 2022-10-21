@@ -239,7 +239,7 @@ class example_application:
     # main method
     def run(self):
         try:
-            self.home()
+            # self.home()
             # self.prepare_cartesian()
             self.run_move_jp()
             #self.run_move_cp()
