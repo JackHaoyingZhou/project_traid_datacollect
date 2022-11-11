@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
-'''
-file name:    calib_probe.py
-description:  load saved ECM images, manually label aruco marker positions in ECM images
-author:       Xihan Ma
-date:         2022-09-24
-'''
+# =============================================================================
+# file name:    calib_probe.py
+# description:  load saved ECM images, manually label aruco marker positions in ECM images
+# author:       Xihan Ma
+# date:         2022-09-24
+# =============================================================================
 import os
 import cv2
 import csv
@@ -36,7 +36,7 @@ class StreamECMData():
         self.cam1_files.append(f)
       elif 'left' in f:
         self.cam2_files.append(f)
-    assert(len(self.cam1_files) == len(self.cam2_files) and len(self.cam1_files) > 0)
+    assert (len(self.cam1_files) == len(self.cam2_files) and len(self.cam1_files) > 0)
     self.num_imgs = len(self.cam1_files)
     t_start = time.perf_counter()
     self.load_cam1_imgs()
@@ -73,11 +73,11 @@ class StreamECMData():
                                               interpolation=cv2.INTER_AREA)
 
   def get_cam1_img(self, nfrm: int) -> np.ndarray:
-    assert(nfrm <= self.num_imgs)
+    assert (nfrm <= self.num_imgs)
     return self.cam1_imgs[nfrm, :, :, :]
 
   def get_cam2_img(self, nfrm: int) -> np.ndarray:
-    assert(nfrm <= self.num_imgs)
+    assert (nfrm <= self.num_imgs)
     return self.cam2_imgs[nfrm, :, :, :]
 
 
@@ -217,7 +217,7 @@ def on_mouse_click(event, x, y, flags, param):
   global mk_counter, mk_pix
   if event == cv2.EVENT_LBUTTONDBLCLK:
     cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
-    assert(mk_counter >= 0 and mk_counter < 2)
+    assert (mk_counter >= 0 and mk_counter < 2)
     mk_pix[mk_counter, :] = [x, y]
     mk_counter += 1
     if mk_counter > 1:
@@ -228,14 +228,16 @@ def on_mouse_click(event, x, y, flags, param):
 camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
 dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
 # ========== choose dataset ==========
-# data_folder = 'T2_pa700/exp_2022_09_23_16_41_50/'
-data_folder = 'T2_pa820/exp_2022_09_23_16_52_11/'
-# data_folder = 'T3_pa700/exp_2022_09_23_17_12_57/'
-# data_folder = 'T3_pa820/exp_2022_09_23_17_20_52/'
+# data_folder = 'data_0923/T2_pa700/'
+# data_folder = 'data_0923/T2_pa820/'
+# data_folder = 'data_0923/T3_pa700/'
+# data_folder = 'data_0923/T3_pa820/'
+# data_folder = 'data_1020_test/T10_pa850/'
+data_folder = 'data_1020_test/T10_us/'
 # ====================================
 img_folder = os.path.join(data_folder, 'image/')
-assert(os.path.exists(img_folder) and os.path.exists(data_folder))
-assert(os.path.exists(data_folder+'labeled/'))  # directory to store labeled data, need to be manually created
+assert (os.path.exists(img_folder) and os.path.exists(data_folder))
+assert (os.path.exists(data_folder+'labeled/'))  # directory to store labeled data, need to be manually created
 mk_counter = 0
 mk_pix = -1*np.ones((2, 2), dtype=np.int32)
 

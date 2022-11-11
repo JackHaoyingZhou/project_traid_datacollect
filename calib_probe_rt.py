@@ -128,7 +128,7 @@ class TrackMarker:
     if self.num_markers == 2:
       if (self.mk_pix != -1).all():
         dist = np.sqrt((self.mk_pix[0, 0]-self.mk_pix[1, 0])**2 +
-                       (self.mk_pix[0, 1]-self.mk_pix[1, 1])**2)
+                      (self.mk_pix[0, 1]-self.mk_pix[1, 1])**2)
       else:
         dist = -1
       return dist
@@ -139,8 +139,8 @@ class TrackMarker:
     if self.num_markers == 2:
       if (self.mk_tvec != -1).all():
         dist = np.sqrt((self.mk_tvec[0, 0]-self.mk_tvec[1, 0])**2 +
-                       (self.mk_tvec[0, 1]-self.mk_tvec[1, 1])**2 +
-                       (self.mk_tvec[0, 2]-self.mk_tvec[1, 2])**2)
+                      (self.mk_tvec[0, 1]-self.mk_tvec[1, 1])**2 +
+                      (self.mk_tvec[0, 2]-self.mk_tvec[1, 2])**2)
       else:
         dist = -1
       return dist
