@@ -217,10 +217,10 @@ def on_mouse_click(event, x, y, flags, param):
   global mk_counter, mk_pix
   if event == cv2.EVENT_LBUTTONDBLCLK:
     cv2.circle(frame, (x, y), 3, (0, 0, 255), -1)
-    assert (mk_counter >= 0 and mk_counter < 2)
+    assert (mk_counter >= 0 and mk_counter < 4)
     mk_pix[mk_counter, :] = [x, y]
     mk_counter += 1
-    if mk_counter > 1:
+    if mk_counter > 4-1:  # reset marker counter after labeling 3 markers
       mk_counter = 0
     cv2.imshow('ecm2', frame)
 
@@ -239,14 +239,14 @@ img_folder = os.path.join(data_folder, 'image/')
 assert (os.path.exists(img_folder) and os.path.exists(data_folder))
 assert (os.path.exists(data_folder+'labeled/'))  # directory to store labeled data, need to be manually created
 mk_counter = 0
-mk_pix = -1*np.ones((2, 2), dtype=np.int32)
+mk_pix = -1*np.ones((4, 2), dtype=np.int32)  # 4 markers by default
 
 
 if __name__ == "__main__":
   # auto_detect()
   # ========== manual detect ==========
   ecm = StreamECMData(img_folder)
-  mk_pix_rec = -1*np.ones((ecm.num_imgs, 2, 2), dtype=np.int32)
+  mk_pix_rec = -1*np.ones((ecm.num_imgs, 4, 2), dtype=np.int32)
   cv2.namedWindow('ecm2', cv2.WINDOW_AUTOSIZE)
   cv2.setMouseCallback('ecm2', on_mouse_click)
 
@@ -260,7 +260,7 @@ if __name__ == "__main__":
         break
       elif key == ord('s'):
         mk_pix_rec[i, :, :] = mk_pix
-        print(f'({i+1}/{ecm.num_imgs}) pix positions: mk0 {mk_pix[0]}, mk1 {mk_pix[1]}')
+        print(f'({i+1}/{ecm.num_imgs}) pix positions: mk0 {mk_pix[0]}, mk1 {mk_pix[1]}, mk2 {mk_pix[2]}, mk3 {mk_pix[3]}')
         pic_path = os.path.join(data_folder, 'labeled/', '{}_labeled.png'.format(str(i+1)))
         cv2.imwrite(pic_path, frame)
         i += 1
@@ -269,7 +269,9 @@ if __name__ == "__main__":
       if i >= ecm.num_imgs:
         print('finished labeling')
         mdic = {"mk0": mk_pix_rec[:, 0, :].reshape(ecm.num_imgs, 2),
-                "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2)}
+                "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2),
+                "mk1": mk_pix_rec[:, 2, :].reshape(ecm.num_imgs, 2),
+                "mk1": mk_pix_rec[:, 3, :].reshape(ecm.num_imgs, 2)}
         mat_path = os.path.join(data_folder, 'labeled/mk_pix.mat')
         savemat(mat_path, mdic)
         break
