@@ -232,8 +232,8 @@ dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
 # data_folder = 'data_0923/T2_pa820/'
 # data_folder = 'data_0923/T3_pa700/'
 # data_folder = 'data_0923/T3_pa820/'
-# data_folder = 'data_1020_test/T10_pa850/'
-data_folder = 'data_1020_test/T10_us/'
+data_folder = 'data_1020_test/T10_pa850/'
+# data_folder = 'data_1020_test/T10_us/'
 # ====================================
 img_folder = os.path.join(data_folder, 'image/')
 assert (os.path.exists(img_folder) and os.path.exists(data_folder))
@@ -270,8 +270,8 @@ if __name__ == "__main__":
         print('finished labeling')
         mdic = {"mk0": mk_pix_rec[:, 0, :].reshape(ecm.num_imgs, 2),
                 "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2),
-                "mk1": mk_pix_rec[:, 2, :].reshape(ecm.num_imgs, 2),
-                "mk1": mk_pix_rec[:, 3, :].reshape(ecm.num_imgs, 2)}
+                "mk2": mk_pix_rec[:, 2, :].reshape(ecm.num_imgs, 2),
+                "mk3": mk_pix_rec[:, 3, :].reshape(ecm.num_imgs, 2)}
         mat_path = os.path.join(data_folder, 'labeled/mk_pix.mat')
         savemat(mat_path, mdic)
         break
@@ -279,7 +279,9 @@ if __name__ == "__main__":
     print(e)
   finally:
     mdic = {"mk0": mk_pix_rec[:, 0, :].reshape(ecm.num_imgs, 2),
-            "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2)}
+            "mk1": mk_pix_rec[:, 1, :].reshape(ecm.num_imgs, 2),
+            "mk2": mk_pix_rec[:, 2, :].reshape(ecm.num_imgs, 2),
+            "mk3": mk_pix_rec[:, 3, :].reshape(ecm.num_imgs, 2)}
     mat_path = os.path.join(data_folder, 'labeled/mk_pix.mat')
     savemat(mat_path, mdic)
   # ===================================
