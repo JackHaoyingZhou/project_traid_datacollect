@@ -140,8 +140,10 @@ class StreamECMData():
     self.cam1_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
     self.cam2_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
     self.record_flag = False  # flag to start recording marker pose
-    self.ecm_cam1_sub = rospy.Subscriber('/cv_camera1/image_raw', Image, self.ecm_cam1_cb)
-    self.ecm_cam2_sub = rospy.Subscriber('/cv_camera2/image_raw', Image, self.ecm_cam2_cb)
+    # self.ecm_cam1_sub = rospy.Subscriber('/cv_camera1/image_raw', Image, self.ecm_cam1_cb)
+    # self.ecm_cam2_sub = rospy.Subscriber('/cv_camera2/image_raw', Image, self.ecm_cam2_cb)
+    self.ecm_cam1_sub = rospy.Subscriber('/cv_camera_right_2/image_raw', Image, self.ecm_cam1_cb)
+    self.ecm_cam2_sub = rospy.Subscriber('/cv_camera_left_0/image_raw', Image, self.ecm_cam2_cb)
     self.record_flag_sub = rospy.Subscriber('/record_ready_flag', Bool, self.record_flag_cb, queue_size=5000)
 
     self.mk_obj = TrackMarker(num_mk=4, recording=True)
@@ -218,64 +220,7 @@ class StreamECMData():
 
 def main():
   ecm = StreamECMData()
-
   ecm.detect_mk_from_ecm()
-
-  # mk_obj = TrackMarker(num_mk=4, recording=True)
-  # # cv2.namedWindow('ecm2', cv2.WINDOW_AUTOSIZE)
-  # rate = rospy.Rate(1000)
-
-  # isMkRecorded = False
-  # frm_save_count = 0
-  # while not rospy.is_shutdown():
-  #   frame = ecm.get_cam2_img()
-  #   mk_obj.detect_markers(frame)
-  #   # mk_obj.estimate_pose(frame, camera_matrix, dist_coeff)
-
-  #   # dist_pix = mk_obj.calc_marker_dist_pix()
-  #   # dist_xyz = mk_obj.calc_marker_dist_xyz()
-  #   # if dist_pix != -1 and dist_xyz != -1:
-  #   #   print(f'dist in img: {dist_pix:.3f} [pix], dist in xyz: {dist_xyz*1000:.4f} [mm]')
-
-  #   # print(f'rot: \n {mk_obj.mk_rmat.reshape((2,3,3))} \ntrans: \n {mk_obj.mk_tvec}')
-
-  #   # ===== comment imshow to save IO =====
-  #   cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
-  #   # cv2.imshow('ecm2', mk_obj.mk_axis_frame)
-  #   # =====================================
-
-  #   record_ready_flag = ecm.record_flag
-  #   # print(f'record ready flag: {record_ready_flag}')
-  #   if record_ready_flag:
-  #     if not isMkRecorded:
-  #       for i in range(50):
-  #         mk_pix = mk_obj.get_marker_pix()
-  #         num_detected = np.sum(np.all(mk_pix != -1, axis=1))
-  #         print(f'markers detected: {num_detected}')
-  #         if num_detected > 0:
-  #           mk_obj.save_mk_pix()
-  #           print(f'marker recorded:\n{mk_pix}')
-  #           frm_save_path = 'data/mk_frame{}.png'.format(frm_save_count)
-  #           cv2.imwrite(os.path.join(os.path.dirname(__file__), frm_save_path), mk_obj.mk_bbox_frame)
-  #           print(f'marker frame {frm_save_count} saved')
-  #           frm_save_count += 1
-  #           isMkRecorded = True
-  #           break
-  #         print('too less marker detected')
-  #   else:
-  #     # print(f'record not ready')
-  #     isMkRecorded = False
-
-  #   key = cv2.waitKey(1)
-  #   if key & 0xFF == ord('q') or key == 27:
-  #     break
-  #   elif key == ord('s'):
-  #     frm_save_path = 'data/mk_frame{}.png'.format(frm_save_count)
-  #     frm_save_count += 1
-  #     cv2.imwrite(os.path.join(os.path.dirname(__file__), frm_save_path), mk_obj.mk_bbox_frame)
-  #     mk_obj.save_mk_pix()
-  #     print(f'marker frame {frm_save_count} saved:\n{mk_obj.get_marker_pix()}')
-  #   rate.sleep()
 
 
 if __name__ == "__main__":
