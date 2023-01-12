@@ -16,7 +16,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from std_msgs.msg import MultiArrayLayout, MultiArrayDimension, Int32MultiArray, Float32MultiArray
 
-camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
+# camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
+camera_matrix = np.array([[596.5596, 0.0, 261.1265], [0.0, 790.1609, 238.1423], [0.0, 0.0, 1.0]])  # ECM cam2
 dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
 
 
@@ -35,10 +36,9 @@ class StreamECMData():
     # self.ecm_cam2_sub = rospy.Subscriber('/cv_camera2/image_raw', Image, self.ecm_cam2_cb)
     self.ecm_cam1_sub = rospy.Subscriber('/cv_camera_right_2/image_raw', Image, self.ecm_cam1_cb)
     self.ecm_cam2_sub = rospy.Subscriber('/cv_camera_left_0/image_raw', Image, self.ecm_cam2_cb)
-    # self.cam1_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
-    # self.cam2_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
-    self.cam1_img = np.zeros((self.IMG_RAW_HEIGHT, self.IMG_RAW_WIDTH, 3), dtype=np.uint8)
-    self.cam2_img = np.zeros((self.IMG_RAW_HEIGHT, self.IMG_RAW_WIDTH, 3), dtype=np.uint8)
+
+    self.cam1_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
+    self.cam2_img = np.zeros((self.IMG_DISP_HEIGHT, self.IMG_DISP_WIDTH, 3), dtype=np.uint8)
 
   def frm_preproc(self, img):
     # kernel = np.array([[-1, -1, -1],
@@ -50,14 +50,14 @@ class StreamECMData():
 
   def ecm_cam1_cb(self, msg: Image) -> None:
     cam1_img_raw = CvBridge().imgmsg_to_cv2(msg).astype(np.uint8)
-    # cam1_img_raw = cv2.resize(cam1_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
-    #                           interpolation=cv2.INTER_AREA)
+    cam1_img_raw = cv2.resize(cam1_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
+                              interpolation=cv2.INTER_AREA)
     self.cam1_img = self.frm_preproc(cam1_img_raw)
 
   def ecm_cam2_cb(self, msg: Image) -> None:
     cam2_img_raw = CvBridge().imgmsg_to_cv2(msg).astype(np.uint8)
-    # cam2_img_raw = cv2.resize(cam2_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
-    #                           interpolation=cv2.INTER_AREA)
+    cam2_img_raw = cv2.resize(cam2_img_raw, (self.IMG_DISP_WIDTH, self.IMG_DISP_HEIGHT),
+                              interpolation=cv2.INTER_AREA)
     self.cam2_img = self.frm_preproc(cam2_img_raw)
 
   def get_cam1_img(self) -> np.ndarray:
@@ -125,13 +125,12 @@ class TrackMarker():
     for id in range(self.num_markers):
       try:
         loc_marker = self.corners[np.where(self.ids == id)[0][0]]
-        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(loc_marker, 0.047, cam_intri, dist_coeff)
-        # self.mk_axis_frame = aruco.drawAxis(self.mk_axis_frame, camera_matrix, dist_coeff, rvecs, tvecs, 0.01)
+        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(loc_marker, 0.006, cam_intri, dist_coeff)
         self.mk_axis_frame = cv2.drawFrameAxes(self.mk_axis_frame, camera_matrix, dist_coeff, rvecs, tvecs, 0.01)  # cv2 has been updated
         rmat = cv2.Rodrigues(rvecs)[0]       # 3x3 rotation
         tvec = np.transpose(tvecs)[:, 0, 0]  # 3x1 translation
       except Exception as e:
-        print(f'pose estimation err: {e}')
+        # print(f'pose estimation err: {e}')
         self.mk_axis_frame = frame.copy()
         rmat = -1*np.ones([3, 3])  # if not detected
         tvec = -1*np.ones([1, 3])
@@ -174,12 +173,12 @@ class TrackMarker():
 
 
 def main():
-  frm_save_path = 'data/mk_frame.png'
+  mk_frm_save_path = 'data/mk_frame.png'
+  frm_save_path = 'data/frame.png'
 
   ecm = StreamECMData()
   mk_obj = TrackMarker(num_mk=4, recording=False)
   rate = rospy.Rate(30)
-  cv2.namedWindow('ecm2', cv2.WINDOW_AUTOSIZE)
 
   while not rospy.is_shutdown():
     frame = ecm.get_cam2_img()
@@ -189,6 +188,7 @@ def main():
     mk_obj.pub_mk_pix()
     mk_obj.pub_mk_pos()
 
+    # cv2.imshow('ecm2', frame)
     # cv2.imshow('ecm2', mk_obj.mk_bbox_frame)
     cv2.imshow('ecm2', mk_obj.mk_axis_frame)
 
@@ -196,8 +196,11 @@ def main():
     if key & 0xFF == ord('q') or key == 27:
       break
     elif key == ord('s'):
-      cv2.imwrite(os.path.join(os.path.dirname(__file__), frm_save_path), mk_obj.mk_bbox_frame)
-      print('marker frame saved')
+      cv2.imwrite(os.path.join(os.path.dirname(__file__), frm_save_path), frame)
+      print('resized frame saved')
+      # cv2.imwrite(os.path.join(os.path.dirname(__file__), mk_frm_save_path), mk_obj.mk_bbox_frame)
+      # print('marker frame saved')
+
     rate.sleep()
 
 
