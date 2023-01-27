@@ -138,4 +138,7 @@ dmypy.json
 
 # matlab
 *.asv
-*.mat
+# *.mat
+
+# multimedia
+*.avi

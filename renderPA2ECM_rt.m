@@ -47,7 +47,7 @@ global rec_count            % probe pose recording count
 global rec_size             % total pose recording
 % global pa_volume            % beamformed pa images
 
-pa = outdas(:,:,10);    % for testing only
+pa = rand(128, 800);    % for testing only
 
 rec_size = 41;  % number of data samples to record
 rec_count = 1;
@@ -130,7 +130,7 @@ end
 %% ----------------- save data -----------------
 save_path = 'probe_pose_recording/';
 time = datestr(now, 'dd-mmm-yyyy-hh-MM');
-tag = '_paT720';
+tag = '_pa720';
 save([save_path, time, tag, '_mk_trans.mat'],'mk_trans_avg_rec');
 save([save_path, time, tag, '_probe_pose.mat'],'probe_pos_rec');
 
