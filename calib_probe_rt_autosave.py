@@ -81,7 +81,6 @@ class TrackMarker:
         tvec = np.transpose(tvecs)[:, 0, 0]  # 3x1 translation
       except Exception as e:
         # print(e)
-        self.mk_axis_frame = frame.copy()
         rmat = -1*np.ones([3, 3])  # if not detected
         tvec = -1*np.ones([1, 3])
       self.mk_rmat[id, :] = rmat.flatten()

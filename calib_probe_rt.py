@@ -72,7 +72,7 @@ class TrackMarker():
   pix_save_path = os.path.join(os.path.dirname(__file__), 'data/{}_marker_pix_log.csv'.format(datetime.now()))
   pos_save_path = os.path.join(os.path.dirname(__file__), 'data/{}_marker_pos_log.csv'.format(datetime.now()))
 
-  def __init__(self, num_mk=1, recording=False):
+  def __init__(self, num_mk=4, recording=False):
     '''
     tested for less than two markers with ids being 0 and 1
     '''
@@ -130,8 +130,7 @@ class TrackMarker():
         rmat = cv2.Rodrigues(rvecs)[0]       # 3x3 rotation
         tvec = np.transpose(tvecs)[:, 0, 0]  # 3x1 translation
       except Exception as e:
-        # print(f'pose estimation err: {e}')
-        self.mk_axis_frame = frame.copy()
+        # print(f'mk {id} pose estimation err: {e}')
         rmat = -1*np.ones([3, 3])  # if not detected
         tvec = -1*np.ones([1, 3])
       self.mk_rmat[id, :] = rmat.flatten()

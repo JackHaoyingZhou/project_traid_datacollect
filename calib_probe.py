@@ -138,7 +138,6 @@ class TrackMarker:
         tvec = np.transpose(tvecs)[:, 0, 0]  # 3x1 translation
       except Exception as e:
         # print(e)
-        self.mk_axis_frame = frame.copy()
         rmat = -1*np.ones([3, 3])  # if not detected
         tvec = -1*np.ones([1, 3])
       self.mk_rmat[id, :] = rmat.flatten()
@@ -228,12 +227,12 @@ def on_mouse_click(event, x, y, flags, param):
 camera_matrix = np.array([[1811.1, 0.0, 813.3], [0.0, 1815.3, 781.8], [0.0, 0.0, 1.0]])  # ECM cam2
 dist_coeff = np.array([-0.3494, 0.4607, 0.0, 0.0])  # ECM cam2
 # ========== choose dataset ==========
-# data_folder = 'data_0923/T2_pa700/'
-# data_folder = 'data_0923/T2_pa820/'
-# data_folder = 'data_0923/T3_pa700/'
-# data_folder = 'data_0923/T3_pa820/'
-# data_folder = 'data_1020_test/T10_pa850/'
-data_folder = 'data_1020_test/T10_us/'
+# data_folder = '9-23-2022/T2_pa700/'
+# data_folder = '9-23-2022/T2_pa820/'
+# data_folder = '9-23-2022/T3_pa700/'
+# data_folder = '9-23-2022/T3_pa820/'
+# data_folder = '10-20-2022/T10_pa850/'
+data_folder = '10-20-2022/T10_us/'
 # ====================================
 img_folder = os.path.join(data_folder, 'image/')
 assert (os.path.exists(img_folder) and os.path.exists(data_folder))
