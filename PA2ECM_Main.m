@@ -29,7 +29,7 @@ D = [170 160 150 130 130 140 105 140 120 120]-10;
 F = 0.2;
 
 for e = 1:length(R)-1
-    
+
     PAoutdas1(1:D(e),1:80,R(e):R(e+1)) = PAoutdas1(1:D(e),1:80,R(e):R(e+1))*F;
     PAoutdas1(D(e)+50:end,1:80,R(e):R(e+1)) = PAoutdas1(D(e)+50:end,1:80,R(e):R(e+1))*F;
     PAoutdas1(1:D(e)+30,81:128,R(e):R(e+1)) = PAoutdas1(1:D(e)+30,81:128,R(e):R(e+1))*F;
@@ -74,169 +74,169 @@ ReconIMGALL = zeros(Pxx+1,Pyy+1,Pzz+1);
 
 for Step = 1:step
 
-%%Search MisMark
-Mk = reshape(SimTraj(1:8,Step),2,4);
-MkNan = find(mean(Mk,1) == -1);
+    %%Search MisMark
+    Mk = reshape(SimTraj(1:8,Step),2,4);
+    MkNan = find(mean(Mk,1) == -1);
 
-if length(MkNan) == 1
-    a = 1
-    MkRef1 = (MkNan - 2);
-    if MkRef1 <= 0
-        MkRef1 = MkRef1+4;
+    if length(MkNan) == 1
+        a = 1
+        MkRef1 = (MkNan - 2);
+        if MkRef1 <= 0
+            MkRef1 = MkRef1+4;
+        end
+        if MkNan == 1 || MkNan == 3
+            MkRef2 = MkNan + 1;
+        else
+            MkRef2 = MkNan - 1;
+        end
+        MkRef0 = find(ismember([1:4],[MkRef1 MkRef2 MkNan])==0);
+
+        Mk(:,MkNan) = Mk(:,MkRef0) + (Mk(:,MkRef1)-Mk(:,MkRef0)) + (Mk(:,MkRef2)-Mk(:,MkRef0));
+    elseif length(MkNan) == 2
+        if min(MkNan == [3 4])
+            Vec = Mk(:,1) - Mk(:,2);
+            VecAng = atan2(Vec(1),Vec(2));
+            OffSet = sqrt(sum(Vec.^2))*(6/32.5);
+            Mk(:,3) = Mk(:,1)-round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
+            Mk(:,4) = Mk(:,2)-round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
+        elseif min(MkNan == [1 2])
+            Vec = Mk(:,3) - Mk(:,4);
+            VecAng = atan2(Vec(1),Vec(2));
+            OffSet = sqrt(sum(Vec.^2))*(6/32.5);
+            Mk(:,1) = Mk(:,3)+round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
+            Mk(:,2) = Mk(:,4)+round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
+        else
+            pause
+        end
     end
-    if MkNan == 1 || MkNan == 3
-        MkRef2 = MkNan + 1;
-    else
-        MkRef2 = MkNan - 1;
+
+    %% Find MidPoint
+    Mk1 = round(mean([Mk(:,2),Mk(:,4)],2));
+    Mk2 = round(mean([Mk(:,1),Mk(:,3)],2));
+    Yrot = SimTraj(9,Step);
+    Marker2Probe = 7; % mm
+    %% Set Image Overlay Param
+    ProbeVec = Mk2 - Mk1;
+
+    PAwidth = channelSpacing*128;
+    PixtoMM = sqrt(sum(ProbeVec.^2))/32.5; % unit pixel/mm
+    Zrot = atan2(-ProbeVec(2),ProbeVec(1))/pi*180;
+    Transpatency = .6;
+    % Transpatency = 50;
+
+    T_cam_Lap = eye(4);
+    T_cam_Lap(1:3,1:3) = roty(Yrot)*rotz(Zrot); % Fake rotation
+
+    %% Rotate PA Image
+    % if Step <= 5
+    %     depROI = [175:200];
+    % elseif Step >= 12 && Step <= 28
+    %     depROI = [100:175];
+    % else
+    %     depROI = [150:200];
+    % end
+    depROI = [51:250];
+
+    % % % img = imresize(outdas(depROI,:,Step),UpSampFac);
+    img = imresize(PAoutdas1dB(depROI,:,Step),UpSampFac);
+
+    ECM = imread(['daVinci_data\',CaseName1,'_2markers\labeled\',num2str(Step),'_labeled.png']);
+
+    pixNum = size(img,2)*size(img,1);
+    CoorsList = zeros(pixNum,3);
+    Intensity = zeros(1,pixNum);
+    k = 1;
+
+    for y = 1:size(img,2)
+        for z = 1:size(img,1)
+
+            T_pix = eye(4);
+            T_pix(2:3,4) = [(129-y)*Py; (z+depROI(1))*Pz];
+            T_cam_pix = T_cam_Lap*T_pix;
+
+            CoorsList(k,:) = T_cam_pix(1:3,4);
+            Intensity(k) = img(z,y);
+
+            k = k+1;
+        end
     end
-    MkRef0 = find(ismember([1:4],[MkRef1 MkRef2 MkNan])==0);
 
-    Mk(:,MkNan) = Mk(:,MkRef0) + (Mk(:,MkRef1)-Mk(:,MkRef0)) + (Mk(:,MkRef2)-Mk(:,MkRef0));
-elseif length(MkNan) == 2
-    if min(MkNan == [3 4])
-        Vec = Mk(:,1) - Mk(:,2);
-        VecAng = atan2(Vec(1),Vec(2));
-        OffSet = sqrt(sum(Vec.^2))*(6/32.5);
-        Mk(:,3) = Mk(:,1)-round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
-        Mk(:,4) = Mk(:,2)-round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
-    elseif min(MkNan == [1 2])
-        Vec = Mk(:,3) - Mk(:,4);
-        VecAng = atan2(Vec(1),Vec(2));
-        OffSet = sqrt(sum(Vec.^2))*(6/32.5);
-        Mk(:,1) = Mk(:,3)+round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
-        Mk(:,2) = Mk(:,4)+round([OffSet*cos(VecAng) OffSet*sin(VecAng)]');
-    else
-        pause
+    ReconIMG = ones(Pxx+1,Pyy+1,Pzz+1)*(-9999);
+
+    % Define Resolution
+    Rxx = (max(CoorsList(:,1))-min(CoorsList(:,1)))/Pxx;
+    Ryy = (max(CoorsList(:,2))-min(CoorsList(:,2)))/Pyy;
+    Rzz = (max(CoorsList(:,3))-min(CoorsList(:,3)))/Pzz;
+
+    if Rxx == 0
+        Rxx = 1e-10;
     end
-end
-
-%% Find MidPoint
-Mk1 = round(mean([Mk(:,2),Mk(:,4)],2));
-Mk2 = round(mean([Mk(:,1),Mk(:,3)],2));
-Yrot = SimTraj(9,Step);
-Marker2Probe = 7; % mm
-%% Set Image Overlay Param
-ProbeVec = Mk2 - Mk1;
-
-PAwidth = channelSpacing*128;
-PixtoMM = sqrt(sum(ProbeVec.^2))/32.5; % unit pixel/mm
-Zrot = atan2(-ProbeVec(2),ProbeVec(1))/pi*180;
-Transpatency = .6;
-% Transpatency = 50;
-
-T_cam_Lap = eye(4);
-T_cam_Lap(1:3,1:3) = roty(Yrot)*rotz(Zrot); % Fake rotation
-
-%% Rotate PA Image
-% if Step <= 5
-%     depROI = [175:200];
-% elseif Step >= 12 && Step <= 28
-%     depROI = [100:175];
-% else
-%     depROI = [150:200];
-% end
-depROI = [51:250];
-
-% % % img = imresize(outdas(depROI,:,Step),UpSampFac);
-img = imresize(PAoutdas1dB(depROI,:,Step),UpSampFac);
-
-ECM = imread(['daVinci_data\',CaseName1,'_2markers\labeled\',num2str(Step),'_labeled.png']);
-
-pixNum = size(img,2)*size(img,1);
-CoorsList = zeros(pixNum,3);
-Intensity = zeros(1,pixNum);
-k = 1;
-        
-for y = 1:size(img,2)
-    for z = 1:size(img,1)
-
-        T_pix = eye(4);
-        T_pix(2:3,4) = [(129-y)*Py; (z+depROI(1))*Pz];
-        T_cam_pix = T_cam_Lap*T_pix;
-
-        CoorsList(k,:) = T_cam_pix(1:3,4);
-        Intensity(k) = img(z,y);
-
-        k = k+1;
+    if Ryy == 0
+        Ryy = 1e-10;
     end
-end
+    if Rzz == 0
+        Rzz = 1e-10;
+    end
 
-ReconIMG = ones(Pxx+1,Pyy+1,Pzz+1)*(-9999);
+    % Search for the nearest voxel in the matrix
+    Ixx = round((CoorsList(:,1)-min(CoorsList(:,1)))/Rxx)+1;
+    Iyy = round((CoorsList(:,2)-min(CoorsList(:,2)))/Ryy)+1;
+    Izz = round((CoorsList(:,3)-min(CoorsList(:,3)))/Rzz)+1;
 
-% Define Resolution
-Rxx = (max(CoorsList(:,1))-min(CoorsList(:,1)))/Pxx;
-Ryy = (max(CoorsList(:,2))-min(CoorsList(:,2)))/Pyy;
-Rzz = (max(CoorsList(:,3))-min(CoorsList(:,3)))/Pzz;
+    for i = 1:length(Intensity)
+        ReconIMG(Ixx(i),Iyy(i),Izz(i)) = Intensity(i);
+    end
+    % ReconIMGALL = ReconIMGALL+ReconIMG;
+    % ReconIMG1 = interp3(ReconIMG,0);
+    ReconIMG1 = ReconIMG;
+    MIP = max(ReconIMG1(:,:,:),[],3);
+    % MIP = max(ReconIMGALL(:,:,:),[],3);
 
-if Rxx == 0
-    Rxx = 1e-10;
-end
-if Ryy == 0
-    Ryy = 1e-10;
-end
-if Rzz == 0
-    Rzz = 1e-10;
-end
+    PixStPt = Mk1;
 
-% Search for the nearest voxel in the matrix
-Ixx = round((CoorsList(:,1)-min(CoorsList(:,1)))/Rxx)+1;
-Iyy = round((CoorsList(:,2)-min(CoorsList(:,2)))/Ryy)+1;
-Izz = round((CoorsList(:,3)-min(CoorsList(:,3)))/Rzz)+1;
+    RyyP = Ryy*PixtoMM;
+    RxxP = Rxx*PixtoMM;
 
-for i = 1:length(Intensity)
-ReconIMG(Ixx(i),Iyy(i),Izz(i)) = Intensity(i);
-end
-% ReconIMGALL = ReconIMGALL+ReconIMG;
-% ReconIMG1 = interp3(ReconIMG,0);
-ReconIMG1 = ReconIMG;
-MIP = max(ReconIMG1(:,:,:),[],3);
-% MIP = max(ReconIMGALL(:,:,:),[],3);
+    % % % MIP1 = MIP./max(max(MIP));
+    MIP1 = MIP;
+    image(ECM)
+    axis image
+    hold on
+    plot([Mk1(1),Mk2(1)],[Mk1(2),Mk2(2)],'m','LineWidth',2)
+    % plot([PixStPt(1),PixStPt(2)],[PixStPt(3),PixStPt(4)],'m','LineWidth',2)
+    PixLat = [1:Pyy]*RyyP+Mk1(1)+(Marker2Probe+depROI(1)*sampleSpacing)*sind(Yrot)*PixtoMM*sind(Zrot);
+    PixDep = ([1:Pxx]*RxxP+Mk1(2)-(Yrot<0)*Pxx*RxxP)+(Marker2Probe+depROI(1)*sampleSpacing)*sind(Yrot)*PixtoMM;
+    im = imagesc(PixLat,PixDep,MIP1);
+    colormap hot
+    caxis([-37 0])
+    im.AlphaData = (Transpatency*(MIP1<-37)+(MIP1>=-37)).*(MIP1 ~= -9999);
+    % im.AlphaData = Transpatency*MIP1;
 
-PixStPt = Mk1;
-
-RyyP = Ryy*PixtoMM;
-RxxP = Rxx*PixtoMM;
-
-% % % MIP1 = MIP./max(max(MIP));
-MIP1 = MIP;
-image(ECM)
-axis image
-hold on
-plot([Mk1(1),Mk2(1)],[Mk1(2),Mk2(2)],'m','LineWidth',2)
-% plot([PixStPt(1),PixStPt(2)],[PixStPt(3),PixStPt(4)],'m','LineWidth',2)
-PixLat = [1:Pyy]*RyyP+Mk1(1)+(Marker2Probe+depROI(1)*sampleSpacing)*sind(Yrot)*PixtoMM*sind(Zrot);
-PixDep = ([1:Pxx]*RxxP+Mk1(2)-(Yrot<0)*Pxx*RxxP)+(Marker2Probe+depROI(1)*sampleSpacing)*sind(Yrot)*PixtoMM;
-im = imagesc(PixLat,PixDep,MIP1);
-colormap hot
-caxis([-37 0])
-im.AlphaData = (Transpatency*(MIP1<-37)+(MIP1>=-37)).*(MIP1 ~= -9999);
-% im.AlphaData = Transpatency*MIP1;
-
-PixLatR(Step,:) = PixLat;
-PixDepR(Step,:) = PixDep;
-MIP2(:,:,Step) = MIP1;
+    PixLatR(Step,:) = PixLat;
+    PixDepR(Step,:) = PixDep;
+    MIP2(:,:,Step) = MIP1;
 
 
-for S = 1:Step
-PixLat = PixLatR(S,:);
-PixDep = PixDepR(S,:);
-MIP3 = MIP2(:,:,S);
-MIP3(MIP3<-35) = -9999;
-% MIP3(MIP3<-40) = 0;
-im = imagesc(PixLat,PixDep,MIP3);
+    for S = 1:Step
+        PixLat = PixLatR(S,:);
+        PixDep = PixDepR(S,:);
+        MIP3 = MIP2(:,:,S);
+        MIP3(MIP3<-35) = -9999;
+        % MIP3(MIP3<-40) = 0;
+        im = imagesc(PixLat,PixDep,MIP3);
 
-colormap hot
-im.AlphaData = Transpatency*(MIP3>=-35);
-end
+        colormap hot
+        im.AlphaData = Transpatency*(MIP3>=-35);
+    end
 
 
-axis([0 1920 0 1080])
+    axis([0 1920 0 1080])
 
-hold off
-drawnow
+    hold off
+    drawnow
 
-% frame=getframe(gcf);
-% writeVideo(writerObj, frame);
+    % frame=getframe(gcf);
+    % writeVideo(writerObj, frame);
 end
 
 % close(writerObj);
@@ -265,28 +265,28 @@ for m = 1:256
 end
 
 for S = 1:size(MIP2i,3)
-PixLat = PixLatRi(S,:);
-PixDep = PixDepRi(S,:);
-MIP3 = MIP2i(:,:,S);
-% MIP3(MIP3<0.1) = 0;
-im = imagesc(PixLat,PixDep,MIP3);
-caxis([-37 0])
+    PixLat = PixLatRi(S,:);
+    PixDep = PixDepRi(S,:);
+    MIP3 = MIP2i(:,:,S);
+    % MIP3(MIP3<0.1) = 0;
+    im = imagesc(PixLat,PixDep,MIP3);
+    caxis([-37 0])
 
-colormap(RED)
-im.AlphaData = (Transpatency*(MIP3<-37)+(MIP3>=-37)).*(MIP3 ~= -9999);
+    colormap(RED)
+    im.AlphaData = (Transpatency*(MIP3<-37)+(MIP3>=-37)).*(MIP3 ~= -9999);
 end
 Transpatency = .01;
 
 for S = 1:size(MIP2i,3)
-PixLat = PixLatRi(S,:);
-PixDep = PixDepRi(S,:);
-MIP3 = MIP2i(:,:,S);
-MIP3(MIP3<-35) = -9999;
-im = imagesc(PixLat,PixDep,MIP3);
-caxis([-37 0])
+    PixLat = PixLatRi(S,:);
+    PixDep = PixDepRi(S,:);
+    MIP3 = MIP2i(:,:,S);
+    MIP3(MIP3<-35) = -9999;
+    im = imagesc(PixLat,PixDep,MIP3);
+    caxis([-37 0])
 
-colormap(RED)
-im.AlphaData = Transpatency*(MIP3>=-35);
+    colormap(RED)
+    im.AlphaData = Transpatency*(MIP3>=-35);
 end
 
 axis([0 1920 0 1080])
