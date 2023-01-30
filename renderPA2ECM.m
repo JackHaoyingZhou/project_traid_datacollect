@@ -23,9 +23,9 @@ marker_trans_data = {
                   };
 
 ecm_data_path = {
-                 'T1_pa700/image/', ...
                  'T2_pa720/image/', ...
-                 'T1_US/image/'
+                 'T2_pa720/image/', ...
+                 'T2_pa720/image/'
                 };
 
 pa_data = {
@@ -36,33 +36,36 @@ pa_data = {
 
 load([dataFolder, probe_pos_data{expRoundId}]) 
 load([dataFolder, pa_data{expRoundId}]) 
-% outdas = 10*log10(outdas);
-% outdas(outdas < -37) = -9999;
 
 ecm_imgs = dir([dataFolder, ecm_data_path{expRoundId},'*.jpg']);
 ecm_imgs = natsort(struct2table(ecm_imgs).name);
 
-%% reconstruct RCM trajectory
+%% ********** reconstruct RCM trajectory **********
 stamp = 1:41;
 probe_rot = probe_pos_rec(1:3,1:3,stamp);
 probe_rot(:,3,:) = probe_rot(:,3,:);       % revert z-axis
 
 probe_trans = squeeze(probe_pos_rec(1:3,4,stamp));     % [m]
-probe_trans(2,:) = probe_trans(2,:);   % revert y-axis
-probe_trans(3,:) = probe_trans(3,:);   % revert z-axis
+probe_trans(2,:) = probe_trans(2,:);  
+probe_trans(3,:) = probe_trans(3,:);
 
-frm0 = 1;
-[yc,zc,R,~] = circfit(probe_trans(2,frm0:end),probe_trans(3,frm0:end));
+frm0 = 10;
+
+% R = 0.0325;
+% R = 0.045;
+% center = probe_trans(:,end) - R*probe_rot(1:3,3,end);
+% yc = center(2); zc = center(3);
+
+par = CircleFitByPratt(probe_trans(2:3,frm0:end)');
+yc = par(1); zc = par(2); R = par(3);
 
 u = probe_trans([2, 3], frm0) - [yc; zc];
 v = probe_trans([2, 3], end) - [yc; zc];
 RCMAngle = angleBtwVectors(u, v);
-theta0 = angleBtwVectors(u, [probe_trans(2, frm0)-yc; 0]);
-
-% % force correction
-% R = 10*R;
 % RCMAngle = 40;
-% theta0 = 70;
+
+theta0 = angleBtwVectors(u, [probe_trans(2, frm0)-yc; 0]);
+% theta0 = (180 - RCMAngle)/2;
 
 % regenerate RCM trajectory
 theta = linspace(theta0, theta0+RCMAngle, length(stamp));
@@ -88,20 +91,20 @@ probe_pos_recon(1:3,3,:) = reshape(z_vec, 3, 1, length(stamp));
 probe_pos_recon(1:3,4,:) = reshape([xi; yi; zi], 3, 1, length(stamp));
 
 % view trajectory
-plot3(probe_trans(1,:), probe_trans(2,:), probe_trans(3,:), '.r', 'MarkerSize', 10)
+plot3(probe_trans(1,:), -probe_trans(2,:), -probe_trans(3,:), '.r', 'MarkerSize', 10)
 grid on; hold on; axis equal
-plot3(mean(probe_trans(1,:)), yc, zc, '.b', 'MarkerSize', 20);
-plot3(xi, yi, zi, '.g', 'MarkerSize', 10);
+plot3(mean(probe_trans(1,:)), -yc, -zc, '.b', 'MarkerSize', 20);
+plot3(xi, -yi, -zi, '.g', 'MarkerSize', 10);
 
-quiver3(probe_trans(1,:), probe_trans(2,:), probe_trans(3,:), ...
-        squeeze(probe_rot(1,end,:))',squeeze(probe_rot(2,end,:))',squeeze(probe_rot(3,end,:))', 0.3);
+quiver3(probe_trans(1,:), -probe_trans(2,:), -probe_trans(3,:), ...
+        -squeeze(probe_rot(1,end,:))',-squeeze(probe_rot(2,end,:))',-squeeze(probe_rot(3,end,:))', 0.3);
 
-quiver3(xi, yi, zi, z_vec(1,:), z_vec(2,:), z_vec(3,:), 0.6);
+quiver3(xi, -yi, -zi, -z_vec(1,:), -z_vec(2,:), -z_vec(3,:), 0.6);
 % legend('estimated probe position', 'estimated RCM center', 'RCM recon. probe position', ...
 %        'estimated probe z-axis', 'RCM recon. probe z-axis')
 
 
-%% generate pointcloud
+%% ********** generate volume **********
 channelSpacing = 0.2539;
 Fs = 27.78e6;
 spdSound = 1480;
@@ -110,19 +113,20 @@ sampleSpacing = (1/Fs)*spdSound*1000;
 res_lat = channelSpacing*1e-3;            % lateral resolution [m/pix]
 res_axi = sampleSpacing*1e-3;             % axial resolution [m/pix]
 
+SamplingFactor = 5;
+outdas = imresize3(outdas(:,:,:),[800 128 41*SamplingFactor]);
+
 HEIGHT = size(outdas, 1);
 WIDTH = size(outdas, 2);
 CHANNEL = size(outdas, 3);
 
-% [row, col] = meshgrid(HEIGHT_BEGIN:HEIGHT_BEGIN + HEIGHT - 1, ...
-% WIDTH_BEGIN:WIDTH_BEGIN + WIDTH - 1);
 [row, col] = meshgrid(1:HEIGHT, 1:WIDTH);
 row = reshape(row, HEIGHT * WIDTH, 1);
 col = reshape(col, HEIGHT * WIDTH, 1);
 
 pa_pix_x = ((col-1) - WIDTH/2) * res_lat;     % lateral fov [m]
 pa_pix_y = zeros(length(row), 1);             % elevational fov [m]
-pa_pix_z = (row-1) * res_axi;                 % axial fov [m]
+pa_pix_z = (row-1) * res_axi + 7*1e-3;        % axial fov [m]
 
 ecm_pix_x = zeros(1, HEIGHT * WIDTH * CHANNEL);
 ecm_pix_y = zeros(1, HEIGHT * WIDTH * CHANNEL);
@@ -131,36 +135,21 @@ pix_int = zeros(1, HEIGHT * WIDTH * CHANNEL);
 
 % trajectory = probe_pos_rec;
 trajectory = probe_pos_recon;
+trajectory = imresize3(trajectory(:,:,:),[4 4 41*SamplingFactor]);
 
-for frm = 1:length(ecm_imgs)
+for frm = 1:CHANNEL
     % store pixel locations
     [x_tmp, y_tmp, z_tmp] = TransformPoints(trajectory(:,:,frm), pa_pix_x, pa_pix_y, pa_pix_z);
     ecm_pix_x((frm - 1) * HEIGHT * WIDTH + 1:frm * HEIGHT * WIDTH) = x_tmp;
     ecm_pix_y((frm - 1) * HEIGHT * WIDTH + 1:frm * HEIGHT * WIDTH) = y_tmp;
     ecm_pix_z((frm - 1) * HEIGHT * WIDTH + 1:frm * HEIGHT * WIDTH) = z_tmp;
     % store pixel intensities
-    pix_int((frm - 1) * HEIGHT * WIDTH + 1:frm * HEIGHT * WIDTH) = outdas(:,:,frm);
+    pix_int((frm - 1) * HEIGHT * WIDTH + 1:frm * HEIGHT * WIDTH) = outdas(:,:,frm)';
     fprintf('processing (%d/%d) frm\n', frm, length(ecm_imgs))
 end
 clear x_tmp y_tmp z_tmp col row
 
-% display pointcloud
-pntsRaw = [ecm_pix_x; ecm_pix_y; ecm_pix_z]';
-
-ind_discard = pix_int < 0.02*max(pix_int);
-pntsRaw(ind_discard, :) = [];
-pix_int_downsampled = pix_int;
-pix_int_downsampled(ind_discard) = [];
-
-pntCloud = pointCloud(pntsRaw, 'Intensity', pix_int_downsampled');
-pcshow(pntCloud);
-xlabel('x'); ylabel('y'); zlabel('z'); 
-axis equal tight
-% make background white
-set(gcf,'color','w');
-set(gca,'color','w','XColor',[0.15 0.15 0.15],'YColor',[0.15 0.15 0.15],'ZColor',[0.15 0.15 0.15]);
-
-%% generate volume
+% ********** reproject pixels to volume **********
 xlimits = [min(ecm_pix_x), max(ecm_pix_x)];
 ylimits = [min(ecm_pix_y), max(ecm_pix_y)];
 zlimits = [min(ecm_pix_z), max(ecm_pix_z)];
@@ -170,9 +159,9 @@ VOLUME_HEIGHT = round(scale * diff(zlimits));         % axial
 VOLUME_WIDTH = round(scale * diff(xlimits));          % lateral
 VOLUME_CHANNEL = round(scale * diff(ylimits));        % elevational
 
-% VOLUME_HEIGHT = 256; % axial
-% VOLUME_WIDTH = 256; % lateral
-% VOLUME_CHANNEL = 800; % elevational
+% VOLUME_HEIGHT = 81; % axial
+% VOLUME_WIDTH = 128; % lateral
+% VOLUME_CHANNEL = 600; % elevational
 
 volume_raw = zeros(VOLUME_HEIGHT, VOLUME_WIDTH, VOLUME_CHANNEL);
 
@@ -194,24 +183,16 @@ for i = 1:length(ind_x)
     volume_raw(ind_z(i), ind_x(i), ind_y(i)) = pix_int(i);
 end
 
-% volume_raw(volume_raw < 0.1) = 0;
-% volume = interp3(volume_raw,1);
-volume = volume_raw;
+volume = volume_raw ./ max(volume_raw,[],'all');
 
 dim = 1;
-MIP = squeeze(max(volume,[],dim));
+MIP = squeeze(max(volume(100:150, :, :), [], dim));
+MIP = interp2(MIP, 3, 'cubic');
+MIP = imgaussfilt(MIP, 5);
+MIP = imdilate(MIP, strel([0 1 0; 1 1 1; 0 1 0]));
 imagesc(MIP)
-
-% topView = squeeze(volume(30,:,:));
-% imagesc(topView)
-
-% sideView = squeeze(volume(:,10,:));
-% imagesc(flipud(sideView))
-
-% frontView = volume(:,:,1);
-% imagesc(frontView)
-
 colormap hot; axis tight equal
+
 switch dim
     case 1
         xlabel('y'); ylabel('x');
@@ -221,8 +202,8 @@ switch dim
         xlabel('x'); ylabel('z');
 end
 
-%% generate ecm overlay using per-frame probe pose estimation
-% ********** const params **********
+%% ********** generate ecm overlay using per-frame probe pose estimation **********
+% ===== const params =====
 cam_mat = [596.5596, 0.0, 261.1265;         % camera intrinsics [m]
            0.0, 790.1609, 238.1423;
            0.0, 0.0, 1.0];
@@ -245,7 +226,7 @@ h = figure('Position', [1920/4, 1080/4, 1080, 720]);
 trajectory = probe_pos_recon;
 
 for i = 1:num_frms
-    ecm_left_img = imread([[dataFolder, ecm_data_path{expRoundId}, ecm_imgs{i}]]);
+    ecm_left_img = imread([dataFolder, ecm_data_path{expRoundId}, ecm_imgs{i}]);
     ecm_left_img = imresize(ecm_left_img, [ECM_DISP_HEIGHT, ECM_DISP_WIDTH]);
     image(ecm_left_img); axis image off;
     hold on;
@@ -258,7 +239,7 @@ for i = 1:num_frms
     % pa image overlay
     pa_reproj = reprojPA(ecm_left_img, pa, trajectory(:, :, i), cam_mat);
     overlay = imagesc(pa_reproj);
-    overlay.AlphaData = (overlay_trans*(pa_reproj<-37)+(pa_reproj>=-37)).*(pa_reproj ~= -9999)
+    overlay.AlphaData = (overlay_trans*(pa_reproj<-37)+(pa_reproj>=-37)).*(pa_reproj ~= -9999);
     colormap hot
 
     hold off;
@@ -272,7 +253,7 @@ if isGenVid
     close(aviObj);
 end
 
-%% utilities
+%% ********** utilities **********
 function [theta] = angleBtwVectors(u, v)
 
 angle = max(min(dot(u,v)/(norm(u)*norm(v)),1),-1);
@@ -280,26 +261,81 @@ theta = real(acosd(angle));
 
 end
 
-function   [xc,yc,R,a] = circfit(x,y)
+function Par = CircleFitByPratt(XY)
+%--------------------------------------------------------------------------
+%  
+%     Circle fit by Pratt
+%      V. Pratt, "Direct least-squares fitting of algebraic surfaces",
+%      Computer Graphics, Vol. 21, pages 145-152 (1987)
 %
-%   [xc yx R] = circfit(x,y)
+%     Input:  XY(n,2) is the array of coordinates of n points x(i)=XY(i,1), y(i)=XY(i,2)
 %
-%   fits a circle  in x,y plane in a more accurate
-%   (less prone to ill condition )
-%  procedure than circfit2 but using more memory
-%  x,y are column vector where (x(i),y(i)) is a measured point
+%     Output: Par = [a b R] is the fitting circle:
+%                           center (a,b) and radius R
 %
-%  result is center point (yc,xc) and radius R
-%  an optional output is the vector of coeficient a
-% describing the circle's equation
+%     Note: this fit does not use built-in matrix functions (except "mean"),
+%           so it can be easily programmed in any programming language
 %
-%   x^2+y^2+a(1)*x+a(2)*y+a(3)=0
-%
-%  By:  Izhak bucher 25/oct /1991, 
-x=x(:); y=y(:);
-a=[x y ones(size(x))]\[-(x.^2+y.^2)];
-xc = -.5*a(1);
-yc = -.5*a(2);
-R  =  sqrt((a(1)^2+a(2)^2)/4-a(3));
-
+%--------------------------------------------------------------------------
+n = size(XY,1);      % number of data points
+centroid = mean(XY);   % the centroid of the data set
+%     computing moments (note: all moments will be normed, i.e. divided by n)
+Mxx=0; Myy=0; Mxy=0; Mxz=0; Myz=0; Mzz=0;
+for i=1:n
+    Xi = XY(i,1) - centroid(1);  %  centering data
+    Yi = XY(i,2) - centroid(2);  %  centering data
+    Zi = Xi*Xi + Yi*Yi;
+    Mxy = Mxy + Xi*Yi;
+    Mxx = Mxx + Xi*Xi;
+    Myy = Myy + Yi*Yi;
+    Mxz = Mxz + Xi*Zi;
+    Myz = Myz + Yi*Zi;
+    Mzz = Mzz + Zi*Zi;
 end
+   
+Mxx = Mxx/n;
+Myy = Myy/n;
+Mxy = Mxy/n;
+Mxz = Mxz/n;
+Myz = Myz/n;
+Mzz = Mzz/n;
+%    computing the coefficients of the characteristic polynomial
+Mz = Mxx + Myy;
+Cov_xy = Mxx*Myy - Mxy*Mxy;
+Mxz2 = Mxz*Mxz;
+Myz2 = Myz*Myz;
+A2 = 4*Cov_xy - 3*Mz*Mz - Mzz;
+A1 = Mzz*Mz + 4*Cov_xy*Mz - Mxz2 - Myz2 - Mz*Mz*Mz;
+A0 = Mxz2*Myy + Myz2*Mxx - Mzz*Cov_xy - 2*Mxz*Myz*Mxy + Mz*Mz*Cov_xy;
+A22 = A2 + A2;
+epsilon=1e-12; 
+ynew=1e+20;
+IterMax=20;
+xnew = 0;
+%    Newton's method starting at x=0
+for iter=1:IterMax
+    yold = ynew;
+    ynew = A0 + xnew*(A1 + xnew*(A2 + 4.*xnew*xnew));
+    if (abs(ynew)>abs(yold))
+        disp('Newton-Pratt goes wrong direction: |ynew| > |yold|');
+        xnew = 0;
+        break;
+    end
+    Dy = A1 + xnew*(A22 + 16*xnew*xnew);
+    xold = xnew;
+    xnew = xold - ynew/Dy;
+    if (abs((xnew-xold)/xnew) < epsilon), break, end
+    if (iter >= IterMax)
+        disp('Newton-Pratt will not converge');
+        xnew = 0;
+    end
+    if (xnew<0.)
+        fprintf(1,'Newton-Pratt negative root:  x=%f\n',xnew);
+        xnew = 0;
+    end
+end
+%    computing the circle parameters
+DET = xnew*xnew - xnew*Mz + Cov_xy;
+Center = [Mxz*(Myy-xnew)-Myz*Mxy , Myz*(Mxx-xnew)-Mxz*Mxy]/DET/2;
+Par = [Center+centroid , sqrt(Center*Center'+Mz+2*xnew)];
+end    %    CircleFitByPratt
