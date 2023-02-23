@@ -26,7 +26,7 @@ time_current = datetime.now().strftime(tm_format)
 
 save_folder_name = 'exp_' + time_current
 
-save_folder = os.path.join(dynamic_path, 'data_1020_test', save_folder_name)
+save_folder = os.path.join(dynamic_path, 'data_230126_test', save_folder_name)
 
 transform_folder = os.path.join(save_folder, 'transform')
 
@@ -44,13 +44,13 @@ bridge = CvBridge()
 
 class triadRecorder:
     def __init__(self):
-        rospy.init_node('traid_test', anonymous=True)
+        rospy.init_node('triad_test', anonymous=True)
         self.sujecm_topic = '/SUJ/ECM/measured_cp'
         self.sujpsm2_topic = '/SUJ/PSM2/measured_cp'
         self.psm2_topic = '/PSM2/measured_js'
         self.ecm_topic = '/ECM/measured_cp'
-        self.camera1_topic = '/cv_camera1/image_raw'
-        self.camera2_topic = '/cv_camera2/image_raw'
+        self.camera1_topic = '/cv_camera_left_0/image_raw'
+        self.camera2_topic = '/cv_camera_right_2/image_raw'
         self.robot_topic = '/robot_ready_flag'
         self.pa_topic = '/PA_ready_flag'
         self.record_topic = '/record_ready_flag'

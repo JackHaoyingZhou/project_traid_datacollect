@@ -166,6 +166,7 @@ class example_application:
                 # self.pub_pa.publish(self.pa_status)
                 # self.record_status = True
                 # self.pub_record.publish(self.record_status)
+                input("Press Enter to continue")
                 print('saving')
                 count += 1
                 print(count)
@@ -239,8 +240,8 @@ class example_application:
     # main method
     def run(self):
         try:
-            self.home()
-            # self.prepare_cartesian()
+            # self.home()
+            self.prepare_cartesian()
             self.run_move_jp()
             #self.run_move_cp()
         except KeyboardInterrupt:

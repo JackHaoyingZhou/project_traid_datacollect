@@ -85,7 +85,7 @@ class example_application:
         print_id('move to starting position')
         goal = numpy.copy(self.arm.setpoint_jp())
         # print(type(goal))
-        goal[0] = -0.10
+        goal[0] = math.radians(20.0)
         goal[1] = -0.524
         # go to zero position, for PSM and ECM make sure 3rd joint is past cannula
         goal.fill(0)
@@ -196,7 +196,7 @@ class example_application:
             # set in position joint mode
             goal[0] = -0.10
             goal[1] = -0.524 ##############################
-            goal[2] = 0.2 + self.insertion
+            goal[2] = 0.2 + self.insertion  # 0.035 desired
             goal[3] = 0.0
             self.arm.move_jp(goal).wait()
 
@@ -240,7 +240,7 @@ class example_application:
     def run(self):
         try:
             # self.home()
-            # self.prepare_cartesian()
+            self.prepare_cartesian()
             self.run_move_jp()
             #self.run_move_cp()
         except KeyboardInterrupt:
